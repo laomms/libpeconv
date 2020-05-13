@@ -1,5 +1,6 @@
 # libpeconv from hasherezade
  (https://github.com/hasherezade/libpeconv)    
+ Recompile:  
  
  ```C
 EXPORTS
