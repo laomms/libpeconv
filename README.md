@@ -2,9 +2,7 @@
  (https://github.com/hasherezade/libpeconv)    
  
  ```C
- LIBRARY
 EXPORTS
-
 alloc_aligned;
 free_aligned;
 load_file;
