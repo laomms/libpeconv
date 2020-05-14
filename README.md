@@ -24,7 +24,6 @@ get_export_directory;
 get_file_hdr;
 pe_realign_raw_to_virtual;
 pe_virtual_to_raw;
-pe_virtual_to_raw;
 dump_to_file;
 find_padding_cave;
 is_module_dll;
