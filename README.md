@@ -1,6 +1,7 @@
 # libpeconv from hasherezade
  (https://github.com/hasherezade/libpeconv)    
- Recompile:  
+
+重新编译版,dll和crt_dll
  
  ```C
 EXPORTS
