@@ -45,6 +45,16 @@ Managed Dll(CLR):
 #include "peconv.h"
 #include "PeconvCLR.h"
 
+class t_function_resolver {
+public:
+    virtual FARPROC resolve_func(LPSTR lib_name, LPSTR func_name) = 0;
+};
+
+class default_func_resolver : t_function_resolver {
+public:
+    virtual FARPROC resolve_func(LPSTR lib_name, LPSTR func_name);
+};
+
 extern "C" peconv::ALIGNED_BUF load_file(IN const char* filename, OUT size_t & read_size)
 {
     return load_file(IN filename, OUT  read_size);
@@ -61,11 +71,11 @@ extern "C"  bool free_aligned(peconv::ALIGNED_BUF buffer, size_t buffer_size)
 {
     return free_aligned( buffer,  buffer_size);
 }
-extern "C" BYTE * load_pe_executable_dll(BYTE * dllRawData, size_t r_size, OUT size_t & v_size, peconv::t_function_resolver * import_resolver)
+extern "C" BYTE * load_pe_executable_dll(BYTE * dllRawData, size_t r_size, OUT size_t & v_size, t_function_resolver * import_resolver)
 {
     return load_pe_executable_dll(dllRawData,  r_size, OUT  v_size, import_resolver );
 }
-extern "C" BYTE * load_pe_executable(const char* my_path, OUT size_t & v_size, peconv::t_function_resolver * import_resolver)
+extern "C" BYTE * load_pe_executable(const char* my_path, OUT size_t & v_size, t_function_resolver * import_resolver)
 {
     return load_pe_executable(my_path, OUT v_size,  import_resolver);
 }
