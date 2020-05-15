@@ -58,9 +58,8 @@ namespace PeconvCLR {
     public:
         static IntPtr LoadFile(IN String^ filename, OUT unsigned  int read_size)
         {
-            unsigned int readsize = read_size;
             char* filename_ = (char*)(void*)Marshal::StringToHGlobalAnsi(filename);
-            return (IntPtr)load_file(IN filename_, OUT readsize);
+            return (IntPtr)load_file(IN filename_, OUT read_size);
         }
         static  void FreeFile(IN Byte buffer)
         {
