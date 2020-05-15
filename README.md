@@ -51,16 +51,6 @@ Managed Dll(CLR):
 using namespace System::Runtime::InteropServices;
 using namespace System;
 using namespace peconv;
-//using namespace std;
-
-//#ifndef _unsigned int_DEFINED
-//#ifdef  _WIN64
-//typedef unsigned __int64    unsigned int;
-//#else
-//typedef _W64 unsigned int   unsigned int;
-//#endif
-//#define _unsigned int_DEFINED
-//#endif
 
 namespace PeconvCLR {
     public ref class FuncLists
