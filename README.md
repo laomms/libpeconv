@@ -56,7 +56,7 @@ namespace PeconvCLR {
     public ref class FuncLists
     {
     public:
-        static IntPtr LoadFile(IN String^ filename, OUT unsigned  int read_size)
+        static IntPtr LoadFile(IN String^ filename, OUT unsigned  int read_size)  //unsigned __int64 for x64
         {
             char* filename_ = (char*)(void*)Marshal::StringToHGlobalAnsi(filename);
             return (IntPtr)load_file(IN filename_, OUT read_size);
