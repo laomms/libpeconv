@@ -51,21 +51,31 @@ Managed Dll(CLR .net4.5):
 using namespace System::Runtime::InteropServices;
 using namespace System;
 using namespace peconv;
+//using namespace std;
+
+
+#ifdef _WIN64
+typedef unsigned __int64 size_t;
+#else
+typedef unsigned int size_t;
+#endif 
+
+
 
 namespace PeconvCLR {
     public ref class FuncLists
     {
     public:
-        static IntPtr LoadFile(IN String^ filename, OUT unsigned int read_size)  //unsigned __int64 for x64
+        static IntPtr LoadFile(IN String^ filename, OUT size_t read_size)  
         {
             char* filename_ = (char*)(void*)Marshal::StringToHGlobalAnsi(filename);
-            return (IntPtr)load_file(IN filename_, OUT read_size);
+            return (IntPtr)load_file(IN filename_,  read_size);
         }
         static  void FreeFile(IN Byte buffer)
         {
             return free_file((PBYTE)buffer);
         }
-        static IntPtr AllocAligned(unsigned int buffer_size, int protect, ULONGLONG desired_base)
+        static IntPtr AllocAligned(size_t buffer_size, int protect, ULONGLONG desired_base)
         {
             return (IntPtr)alloc_aligned(buffer_size, protect, desired_base);
         }
@@ -73,29 +83,29 @@ namespace PeconvCLR {
         {
             return free_aligned((PBYTE)buffer, buffer_size);
         }
-        static IntPtr LoadPeExecutable_Dll(array<Byte>^ dllRawData, unsigned int r_size, unsigned int v_size, IntPtr import_resolver)
+        static IntPtr LoadPeExecutable_Dll(array<Byte>^ dllRawData, size_t r_size, size_t v_size, IntPtr import_resolver)
         {
             cli::pin_ptr<Byte> p = &dllRawData[0];
             BYTE* dll_RawData = p;
             return (IntPtr)load_pe_executable_dll(dll_RawData, r_size, v_size, (t_function_resolver*)&import_resolver);
         }
-        static IntPtr LoadPeExecutable(String^ my_path, OUT unsigned int v_size, IntPtr import_resolver)
+        static IntPtr LoadPeExecutable(String^ my_path, OUT size_t v_size, IntPtr import_resolver)
         {
             char* mypath = (char*)(void*)Marshal::StringToHGlobalAnsi(my_path);
             return  (IntPtr)load_pe_executable(mypath, OUT v_size, (t_function_resolver*)&import_resolver);
         }
-        static IntPtr LoadPeModule(String^ filename, OUT unsigned int v_size, bool executable, bool relocate)
+        static IntPtr LoadPeModule(String^ filename, OUT size_t v_size, bool executable, bool relocate)
         {
             char* filename_ = (char*)(void*)Marshal::StringToHGlobalAnsi(filename);
             return (IntPtr)load_pe_module(filename_, OUT  v_size, executable, relocate);
         }
-        static IntPtr LoadPeModule_Dll(BYTE* dllRawData, unsigned int r_size, OUT unsigned int v_size, bool executable, bool relocate)
+        static IntPtr LoadPeModule_Dll(BYTE* dllRawData, size_t r_size, OUT size_t v_size, bool executable, bool relocate)
         {
             cli::pin_ptr<Byte> p = &dllRawData[0];
             BYTE* dll_RawData = p;
             return (IntPtr)load_pe_module_dll(dll_RawData, r_size, OUT  v_size, executable, relocate);
         }
-        static IntPtr LoadreSourceData(OUT unsigned int out_size, int res_id, String^ res_type, IntPtr hInstance)
+        static IntPtr LoadreSourceData(OUT size_t out_size, int res_id, String^ res_type, IntPtr hInstance)
         {
             char buffer[1024];
             IntPtr hglob = Marshal::StringToHGlobalAnsi(res_type);
@@ -104,7 +114,7 @@ namespace PeconvCLR {
             Marshal::FreeHGlobal(hglob);
             return (IntPtr)load_resource_data(OUT out_size, res_id, restype, (HMODULE)hInstance.ToPointer());
         }
-        static bool FreePeBuffer(Byte buffer, unsigned int buffer_size)
+        static bool FreePeBuffer(Byte buffer, size_t buffer_size)
         {
             return free_pe_buffer((PBYTE)buffer, buffer_size);
         }
@@ -114,13 +124,13 @@ namespace PeconvCLR {
             BYTE* pebuffer = p;
             return get_entry_point_rva(pebuffer);
         }
-        static unsigned int GetSectionsCount(IN const array<Byte>^ payload, IN const unsigned int buffer_size)
+        static size_t GetSectionsCount(IN const array<Byte>^ payload, IN const size_t buffer_size)
         {
             cli::pin_ptr<Byte> p = &payload[0];
             BYTE* payload_ = p;
             return get_sections_count(IN payload_, buffer_size);
         }
-        static PIMAGE_SECTION_HEADER GetSectionHdr(IN const array<Byte>^ payload, IN const unsigned int buffer_size, IN unsigned int section_num)
+        static PIMAGE_SECTION_HEADER GetSectionHdr(IN const array<Byte>^ payload, IN const size_t buffer_size, IN size_t section_num)
         {
             cli::pin_ptr<Byte> p = &payload[0];
             BYTE* payload_ = p;
@@ -148,23 +158,23 @@ namespace PeconvCLR {
         {
             return get_export_directory((HMODULE)modulePtr.ToPointer());
         }
-        static IntPtr PeRealignRawToVirtual(IN const array<Byte>^ payload, IN unsigned int in_size, IN ULONGLONG loadBase, OUT unsigned int& out_size)
+        static IntPtr PeRealignRawToVirtual(IN const array<Byte>^ payload, IN size_t in_size, IN ULONGLONG loadBase, OUT size_t& out_size)
         {
             cli::pin_ptr<Byte> p = &payload[0];
             BYTE* payload_ = p;
             return (IntPtr)pe_realign_raw_to_virtual(IN payload_, IN in_size, IN loadBase, OUT  out_size);
         }
-        static IntPtr PeVirtualToRaw(IN array<Byte>^ payload, IN unsigned int in_size, IN ULONGLONG loadBase, OUT unsigned int& out_size, IN OPTIONAL bool rebuffer)
+        static IntPtr PeVirtualToRaw(IN array<Byte>^ payload, IN size_t in_size, IN ULONGLONG loadBase, OUT size_t& out_size, IN OPTIONAL bool rebuffer)
         {
             cli::pin_ptr<Byte> p = &payload[0];
             BYTE* payload_ = p;
             return (IntPtr)pe_virtual_to_raw(IN  payload_, IN  in_size, IN  loadBase, OUT  out_size, IN OPTIONAL  rebuffer);
         }
-        static bool DumpFile(IN const char* out_path, IN PBYTE dump_data, IN unsigned int dump_size)
+        static bool DumpFile(IN const char* out_path, IN PBYTE dump_data, IN size_t dump_size)
         {
             return dump_to_file(IN  out_path, IN  dump_data, IN  dump_size);
         }
-        static PBYTE FindPaddingCave(array<Byte>^ modulePtr, unsigned int moduleSize, const unsigned int minimal_size, const DWORD req_charact)
+        static PBYTE FindPaddingCave(array<Byte>^ modulePtr, size_t moduleSize, const size_t minimal_size, const DWORD req_charact)
         {
             cli::pin_ptr<Byte> p = &modulePtr[0];
             BYTE* modulePtr_ = p;
@@ -188,15 +198,15 @@ namespace PeconvCLR {
             BYTE* pebuffer = p;
             return has_relocations(IN  pebuffer);
         }
-        static bool HasValidRelocationTable(IN const PBYTE modulePtr, IN const unsigned int moduleSize)
+        static bool HasValidRelocationTable(IN const PBYTE modulePtr, IN const size_t moduleSize)
         {
             return has_valid_relocation_table(IN  modulePtr, IN  moduleSize);
         }
-        static Byte ReadFromFile(IN const char* in_path, IN OUT unsigned int& read_size)
+        static Byte ReadFromFile(IN const char* in_path, IN OUT size_t& read_size)
         {
             return (Byte)read_from_file(IN  in_path, IN OUT  read_size);
         }
-        static bool RelocateModule(IN array<Byte>^ modulePtr, IN unsigned int moduleSize, IN ULONGLONG newBase, IN ULONGLONG oldBase)
+        static bool RelocateModule(IN array<Byte>^ modulePtr, IN size_t moduleSize, IN ULONGLONG newBase, IN ULONGLONG oldBase)
         {
             cli::pin_ptr<Byte> p = &modulePtr[0];
             BYTE* modulePtr_ = p;
@@ -208,14 +218,13 @@ namespace PeconvCLR {
             BYTE* pebuffer = p;
             return update_entry_point_rva(IN OUT  pebuffer, IN  value);
         }
-        static bool ValidatePtr(IN const IntPtr buffer_bgn, IN unsigned int buffer_size, IN const IntPtr field_bgn, IN unsigned int field_size)
+        static bool ValidatePtr(IN const IntPtr buffer_bgn, IN size_t buffer_size, IN const void* field_bgn, IN size_t field_size)
         {
 
-            return validate_ptr(IN (void*) buffer_bgn, IN  buffer_size, IN(void*)field_bgn, IN  field_size);
+            return validate_ptr(IN (void*) buffer_bgn, IN  buffer_size, IN  field_bgn, IN  field_size);
         }
     };
 }
-
 
 ```
 
