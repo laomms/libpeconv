@@ -39,7 +39,7 @@ validate_ptr;
  
 ```
 
-Managed Dll(CLR):
+Managed Dll(CLR .net4.5):
  ```C
 #pragma once
 #include <windows.h>
