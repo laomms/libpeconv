@@ -41,6 +41,191 @@ validate_ptr;
 
 Managed Dll(CLR):
  ```C
+#pragma once
+#include <windows.h>
+#include <vcclr.h>
+#using <System.dll>
+#include <string>
+#include <iostream>
+
+using namespace System::Runtime::InteropServices;
+using namespace System;
+using namespace peconv;
+//using namespace std;
+
+//#ifndef _unsigned int_DEFINED
+//#ifdef  _WIN64
+//typedef unsigned __int64    unsigned int;
+//#else
+//typedef _W64 unsigned int   unsigned int;
+//#endif
+//#define _unsigned int_DEFINED
+//#endif
+
+namespace PeconvCLR {
+    public ref class FuncLists
+    {
+    public:
+        static IntPtr LoadFile(IN String^ filename, OUT unsigned  int read_size)
+        {
+            unsigned int readsize = read_size;
+            char* filename_ = (char*)(void*)Marshal::StringToHGlobalAnsi(filename);
+            return (IntPtr)load_file(IN filename_, OUT readsize);
+        }
+        static  void FreeFile(IN Byte buffer)
+        {
+            return free_file((PBYTE)buffer);
+        }
+        static IntPtr AllocAligned(unsigned int buffer_size, int protect, ULONGLONG desired_base)
+        {
+            return (IntPtr)alloc_aligned(buffer_size, protect, desired_base);
+        }
+        static  bool FreeaLigned(Byte buffer, unsigned  int buffer_size)
+        {
+            return free_aligned((PBYTE)buffer, buffer_size);
+        }
+        static IntPtr LoadPeExecutable_Dll(array<Byte>^ dllRawData, unsigned int r_size, unsigned int v_size, IntPtr import_resolver)
+        {
+            cli::pin_ptr<Byte> p = &dllRawData[0];
+            BYTE* dll_RawData = p;
+            return (IntPtr)load_pe_executable_dll(dll_RawData, r_size, v_size, (t_function_resolver*)&import_resolver);
+        }
+        static IntPtr LoadPeExecutable(String^ my_path, OUT unsigned int v_size, IntPtr import_resolver)
+        {
+            char* mypath = (char*)(void*)Marshal::StringToHGlobalAnsi(my_path);
+            return  (IntPtr)load_pe_executable(mypath, OUT v_size, (t_function_resolver*)&import_resolver);
+        }
+        static IntPtr LoadPeModule(String^ filename, OUT unsigned int v_size, bool executable, bool relocate)
+        {
+            char* filename_ = (char*)(void*)Marshal::StringToHGlobalAnsi(filename);
+            return (IntPtr)load_pe_module(filename_, OUT  v_size, executable, relocate);
+        }
+        static IntPtr LoadPeModule_Dll(BYTE* dllRawData, unsigned int r_size, OUT unsigned int v_size, bool executable, bool relocate)
+        {
+            cli::pin_ptr<Byte> p = &dllRawData[0];
+            BYTE* dll_RawData = p;
+            return (IntPtr)load_pe_module_dll(dll_RawData, r_size, OUT  v_size, executable, relocate);
+        }
+        static IntPtr LoadreSourceData(OUT unsigned int out_size, int res_id, String^ res_type, IntPtr hInstance)
+        {
+            char buffer[1024];
+            IntPtr hglob = Marshal::StringToHGlobalAnsi(res_type);
+            char* restype = static_cast<char*>(hglob.ToPointer());
+            strcpy(buffer, restype);
+            Marshal::FreeHGlobal(hglob);
+            return (IntPtr)load_resource_data(OUT out_size, res_id, restype, (HMODULE)hInstance.ToPointer());
+        }
+        static bool FreePeBuffer(Byte buffer, unsigned int buffer_size)
+        {
+            return free_pe_buffer((PBYTE)buffer, buffer_size);
+        }
+        static DWORD GetEntrypoint_Rva(IN const array<Byte>^ pe_buffer)
+        {
+            cli::pin_ptr<Byte> p = &pe_buffer[0];
+            BYTE* pebuffer = p;
+            return get_entry_point_rva(pebuffer);
+        }
+        static unsigned int GetSectionsCount(IN const array<Byte>^ payload, IN const unsigned int buffer_size)
+        {
+            cli::pin_ptr<Byte> p = &payload[0];
+            BYTE* payload_ = p;
+            return get_sections_count(IN payload_, buffer_size);
+        }
+        static PIMAGE_SECTION_HEADER GetSectionHdr(IN const array<Byte>^ payload, IN const unsigned int buffer_size, IN unsigned int section_num)
+        {
+            cli::pin_ptr<Byte> p = &payload[0];
+            BYTE* payload_ = p;
+            return get_section_hdr(IN payload_, IN  buffer_size, IN  section_num);
+        }
+        static ULONGLONG GetImagebase(IN const array<Byte>^ pe_buffer)
+        {
+            cli::pin_ptr<Byte> p = &pe_buffer[0];
+            BYTE* pebuffer = p;
+            return get_image_base(pebuffer);
+        }
+        static DWORD GetImagesize(IN const array<Byte>^ payload)
+        {
+            cli::pin_ptr<Byte> p = &payload[0];
+            BYTE* payload_ = p;
+            return get_image_size(IN  payload_);
+        }
+        static WORD GetSubsystem(IN const array<Byte>^ payload)
+        {
+            cli::pin_ptr<Byte> p = &payload[0];
+            BYTE* payload_ = p;
+            return get_subsystem(payload_);
+        }
+        static IMAGE_EXPORT_DIRECTORY* GetExportDirectory(IN IntPtr modulePtr)
+        {
+            return get_export_directory((HMODULE)modulePtr.ToPointer());
+        }
+        static IntPtr PeRealignRawToVirtual(IN const array<Byte>^ payload, IN unsigned int in_size, IN ULONGLONG loadBase, OUT unsigned int& out_size)
+        {
+            cli::pin_ptr<Byte> p = &payload[0];
+            BYTE* payload_ = p;
+            return (IntPtr)pe_realign_raw_to_virtual(IN payload_, IN in_size, IN loadBase, OUT  out_size);
+        }
+        static IntPtr PeVirtualToRaw(IN array<Byte>^ payload, IN unsigned int in_size, IN ULONGLONG loadBase, OUT unsigned int& out_size, IN OPTIONAL bool rebuffer)
+        {
+            cli::pin_ptr<Byte> p = &payload[0];
+            BYTE* payload_ = p;
+            return (IntPtr)pe_virtual_to_raw(IN  payload_, IN  in_size, IN  loadBase, OUT  out_size, IN OPTIONAL  rebuffer);
+        }
+        static bool DumpFile(IN const char* out_path, IN PBYTE dump_data, IN unsigned int dump_size)
+        {
+            return dump_to_file(IN  out_path, IN  dump_data, IN  dump_size);
+        }
+        static PBYTE FindPaddingCave(array<Byte>^ modulePtr, unsigned int moduleSize, const unsigned int minimal_size, const DWORD req_charact)
+        {
+            cli::pin_ptr<Byte> p = &modulePtr[0];
+            BYTE* modulePtr_ = p;
+            return find_padding_cave(modulePtr_, moduleSize, minimal_size, req_charact);
+        }
+        static bool IsDll(IN const array<Byte>^ payload)
+        {
+            cli::pin_ptr<Byte> p = &payload[0];
+            BYTE* payload_ = p;
+            return is_module_dll(IN  payload_);
+        }
+        static bool Is64(IN const array<Byte>^ pe_buffer)
+        {
+            cli::pin_ptr<Byte> p = &pe_buffer[0];
+            BYTE* pebuffer = p;
+            return is64bit(IN  pebuffer);
+        }
+        static bool HasRelocations(IN const array<Byte>^ pe_buffer)
+        {
+            cli::pin_ptr<Byte> p = &pe_buffer[0];
+            BYTE* pebuffer = p;
+            return has_relocations(IN  pebuffer);
+        }
+        static bool HasValidRelocationTable(IN const PBYTE modulePtr, IN const unsigned int moduleSize)
+        {
+            return has_valid_relocation_table(IN  modulePtr, IN  moduleSize);
+        }
+        static Byte ReadFromFile(IN const char* in_path, IN OUT unsigned int& read_size)
+        {
+            return (Byte)read_from_file(IN  in_path, IN OUT  read_size);
+        }
+        static bool RelocateModule(IN array<Byte>^ modulePtr, IN unsigned int moduleSize, IN ULONGLONG newBase, IN ULONGLONG oldBase)
+        {
+            cli::pin_ptr<Byte> p = &modulePtr[0];
+            BYTE* modulePtr_ = p;
+            return relocate_module(IN modulePtr_, IN  moduleSize, IN newBase, IN oldBase);
+        }
+        static bool UpdateEntrypointRva(IN OUT array<Byte>^ pe_buffer, IN DWORD value)
+        {
+            cli::pin_ptr<Byte> p = &pe_buffer[0];
+            BYTE* pebuffer = p;
+            return update_entry_point_rva(IN OUT  pebuffer, IN  value);
+        }
+        static bool ValidatePtr(IN const IntPtr buffer_bgn, IN unsigned int buffer_size, IN const IntPtr field_bgn, IN unsigned int field_size)
+        {
+
+            return validate_ptr(IN (void*) buffer_bgn, IN  buffer_size, IN(void*)field_bgn, IN  field_size);
+        }
+    };
+}
 
 
 ```
