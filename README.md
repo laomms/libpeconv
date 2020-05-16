@@ -66,9 +66,12 @@ namespace PeconvCLR {
     public ref class FuncLists
     {
     public:
-        static IntPtr LoadFile(IN String^ filename, OUT size_t read_size)  
+        static IntPtr LoadFile(IN String^ filename, size_t^% read_size)
         {
-            return (IntPtr)load_file(IN(char*)(void*)Marshal::StringToHGlobalAnsi(filename),  read_size);
+            size_t readsize=0;
+            ALIGNED_BUF ret=load_file(IN(char*)(void*)Marshal::StringToHGlobalAnsi(filename), readsize);
+            read_size = readsize;
+            return (IntPtr)ret;
         }
         static  void FreeFile(IN IntPtr buffer)
         {
@@ -82,27 +85,39 @@ namespace PeconvCLR {
         {
             return free_aligned((PBYTE)buffer.ToPointer(), buffer_size);
         }
-        static IntPtr LoadPeExecutable_Dll(IntPtr dllRawData, size_t r_size, size_t v_size, IntPtr import_resolver)
+        static IntPtr LoadPeExecutable_Dll(IntPtr dllRawData, size_t r_size,  size_t^ % v_size, IntPtr import_resolver)
         {
-            return (IntPtr)load_pe_executable_dll((BYTE*)dllRawData.ToPointer(), r_size, v_size, (t_function_resolver*)&import_resolver);
+             size_t vsize = 0;
+             BYTE * ret = load_pe_executable_dll((BYTE*)dllRawData.ToPointer(), r_size,  vsize, (t_function_resolver*)&import_resolver);
+             v_size = vsize;
+             return (IntPtr)ret;
+        } 
+        static IntPtr LoadPeExecutable(String^ my_path, size_t^% v_size, IntPtr import_resolver)
+        {       
+            size_t vsize = (size_t)v_size;
+            BYTE* ret = load_pe_executable((char*)(void*)Marshal::StringToHGlobalAnsi(my_path),  vsize, (t_function_resolver*)&import_resolver);
+            return  (IntPtr)ret;
         }
-        static IntPtr LoadPeExecutable(String^ my_path, OUT size_t v_size, IntPtr import_resolver)
+        static IntPtr LoadPeModule(String^ filename, size_t^% v_size, bool executable, bool relocate)
         {
-            char* mypath = (char*)(void*)Marshal::StringToHGlobalAnsi(my_path);
-            return  (IntPtr)load_pe_executable(mypath, OUT v_size, (t_function_resolver*)&import_resolver);
+            size_t vsize = 0;
+            BYTE* ret = load_pe_module((char*)(void*)Marshal::StringToHGlobalAnsi(filename),  vsize, executable, relocate);
+            v_size = vsize;
+            return (IntPtr)ret;
         }
-        static IntPtr LoadPeModule(String^ filename, OUT size_t v_size, bool executable, bool relocate)
+        static IntPtr LoadPeModule_Dll(IntPtr dllRawData, size_t r_size, size_t^% v_size, bool executable, bool relocate)
         {
-            char* filename_ = (char*)(void*)Marshal::StringToHGlobalAnsi(filename);
-            return (IntPtr)load_pe_module(filename_, OUT  v_size, executable, relocate);
+            size_t vsize = 0;
+            BYTE* ret = load_pe_module_dll((BYTE*)dllRawData.ToPointer(), r_size, OUT  vsize, executable, relocate);
+            v_size = vsize;
+            return (IntPtr)ret;
         }
-        static IntPtr LoadPeModule_Dll(IntPtr dllRawData, size_t r_size, OUT size_t v_size, bool executable, bool relocate)
+        static IntPtr LoadreSourceData(size_t^% out_size, int res_id, String^ res_type, IntPtr hInstance)
         {
-            return (IntPtr)load_pe_module_dll((BYTE*)dllRawData.ToPointer(), r_size, OUT  v_size, executable, relocate);
-        }
-        static IntPtr LoadreSourceData(OUT size_t out_size, int res_id, String^ res_type, IntPtr hInstance)
-        {
-            return (IntPtr)load_resource_data(OUT out_size, res_id, (char*)Marshal::StringToHGlobalAnsi(res_type).ToPointer(), (HMODULE)hInstance.ToPointer());
+            size_t outsize = 0;
+            ALIGNED_BUF ret = load_resource_data(outsize, res_id, (char*)Marshal::StringToHGlobalAnsi(res_type).ToPointer(), (HMODULE)hInstance.ToPointer());
+            out_size = outsize;
+            return (IntPtr)ret;
         }
         static bool FreePeBuffer(IntPtr buffer, size_t buffer_size)
         {
@@ -136,21 +151,27 @@ namespace PeconvCLR {
         {
             return get_export_directory((HMODULE)modulePtr.ToPointer());
         }
-        static IntPtr PeRealignRawToVirtual(IN IntPtr payload, IN size_t in_size, IN ULONGLONG loadBase, OUT size_t& out_size)
+        static IntPtr PeRealignRawToVirtual(IN IntPtr payload, IN size_t in_size, IN ULONGLONG loadBase, size_t^% out_size)
         {
-            return (IntPtr)pe_realign_raw_to_virtual(IN(BYTE*)payload.ToPointer(), IN in_size, IN loadBase, OUT  out_size);
+            size_t outsize =0;
+            BYTE* ret = pe_realign_raw_to_virtual(IN(BYTE*)payload.ToPointer(), IN in_size, IN loadBase, OUT  outsize);
+            out_size = outsize;
+            return (IntPtr)ret;
         }
-        static IntPtr PeVirtualToRaw(IN IntPtr payload, IN size_t in_size, IN ULONGLONG loadBase, OUT size_t& out_size, IN OPTIONAL bool rebuffer)
+        static IntPtr PeVirtualToRaw(IN IntPtr payload, IN size_t in_size, IN ULONGLONG loadBase, size_t^% out_size, IN OPTIONAL bool rebuffer)
         {
-            return (IntPtr)pe_virtual_to_raw(IN (BYTE*)payload.ToPointer(), IN  in_size, IN  loadBase, OUT  out_size, IN OPTIONAL  rebuffer);
+            size_t outsize = 0;
+            BYTE* ret = pe_virtual_to_raw(IN (BYTE*)payload.ToPointer(), IN  in_size, IN  loadBase, OUT  outsize, IN OPTIONAL  rebuffer);
+            out_size = outsize;
+            return (IntPtr)ret;
         }
-        static bool DumpFile(IN const char* out_path, IN PBYTE dump_data, IN size_t dump_size)
+        static bool DumpFile(IN String^ out_path, IN PBYTE dump_data, IN size_t dump_size)
         {
-            return dump_to_file(IN  out_path, IN  dump_data, IN  dump_size);
+            return dump_to_file(IN(const char*)(void*)Marshal::StringToHGlobalAnsi(out_path), IN  dump_data, IN  dump_size);
         }
-        static PBYTE FindPaddingCave(IntPtr modulePtr, size_t moduleSize, const size_t minimal_size, const DWORD req_charact)
+        static IntPtr FindPaddingCave(IntPtr modulePtr, size_t moduleSize, const size_t minimal_size, const DWORD req_charact)
         {
-            return find_padding_cave((BYTE*)modulePtr.ToPointer(), moduleSize, minimal_size, req_charact);
+            return (IntPtr)find_padding_cave((BYTE*)modulePtr.ToPointer(), moduleSize, minimal_size, req_charact);
         }
         static bool IsDll(IN IntPtr payload)
         {
@@ -168,9 +189,12 @@ namespace PeconvCLR {
         {
             return has_valid_relocation_table(IN  modulePtr, IN  moduleSize);
         }
-        static Byte ReadFromFile(IN String^ in_path, IN OUT size_t read_size)
+        static IntPtr ReadFromFile(IN String^ in_path, size_t^% read_size)
         {
-            return (Byte)read_from_file(IN(char*)(void*)Marshal::StringToHGlobalAnsi(in_path), IN OUT  read_size);
+            size_t readsize = 0;
+            ALIGNED_BUF ret = read_from_file((const char*)(void*)Marshal::StringToHGlobalAnsi(in_path),  readsize);
+            read_size = readsize;
+            return (IntPtr)ret;
         }
         static bool RelocateModule(IN IntPtr modulePtr, IN size_t moduleSize, IN ULONGLONG newBase, IN ULONGLONG oldBase)
         {
@@ -180,13 +204,14 @@ namespace PeconvCLR {
         {
             return update_entry_point_rva(IN OUT(BYTE*)pe_buffer.ToPointer(), IN  value);
         }
-        static bool ValidatePtr(IN const IntPtr buffer_bgn, IN size_t buffer_size, IN const void* field_bgn, IN size_t field_size)
+        static bool ValidatePtr(IN const IntPtr buffer_bgn, IN size_t buffer_size, IN IntPtr field_bgn, IN size_t field_size)
         {
-            return validate_ptr(IN (void*) buffer_bgn, IN  buffer_size, IN  field_bgn, IN  field_size);
+            return validate_ptr(IN (void*) buffer_bgn, IN  buffer_size, IN (void*) field_bgn, IN  field_size);
         }
         static bool is_compatibile(IntPtr implant_dll);
     };
 }
+
 ```
 
 
