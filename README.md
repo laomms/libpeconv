@@ -287,21 +287,20 @@ Module Module1
         Return True
     End Function
     
-    Private Function translate_protect(ByVal sec_charact As UInteger) As UInteger
-        If (sec_charact And IMAGE_SCN_MEM_EXECUTE) <> 0 AndAlso (sec_charact And IMAGE_SCN_MEM_READ) <> 0 AndAlso (sec_charact And IMAGE_SCN_MEM_WRITE) <> 0 Then
+        Private Function translate_protect(ByVal sec_charact As UInteger) As UInteger
+        If sec_charact And IMAGE_SCN_MEM_EXECUTE <> 0 AndAlso sec_charact And IMAGE_SCN_MEM_READ <> 0 AndAlso sec_charact And IMAGE_SCN_MEM_WRITE <> 0 Then
             Return PAGE_EXECUTE_READWRITE
         End If
-        If (sec_charact And IMAGE_SCN_MEM_EXECUTE) <> 0 AndAlso (sec_charact And IMAGE_SCN_MEM_READ) <> 0 Then
+        If sec_charact And IMAGE_SCN_MEM_EXECUTE <> 0 AndAlso sec_charact And IMAGE_SCN_MEM_READ <> 0 Then
             Return PAGE_EXECUTE_READ
         End If
-        If (sec_charact And IMAGE_SCN_MEM_EXECUTE) <> 0 Then
+        If sec_charact And IMAGE_SCN_MEM_EXECUTE <> 0 Then
             Return PAGE_EXECUTE_READ
         End If
-
-        If (sec_charact And IMAGE_SCN_MEM_READ) <> 0 AndAlso (sec_charact And IMAGE_SCN_MEM_WRITE) <> 0 Then
+        If sec_charact And IMAGE_SCN_MEM_READ <> 0 AndAlso sec_charact And IMAGE_SCN_MEM_WRITE <> 0 Then
             Return PAGE_READWRITE
         End If
-        If (sec_charact And IMAGE_SCN_MEM_READ) <> 0 Then
+        If sec_charact And IMAGE_SCN_MEM_READ <> 0 Then
             Return PAGE_READONLY
         End If
         Return PAGE_READWRITE
