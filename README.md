@@ -51,6 +51,8 @@ Managed Dll(CLR .net4.5),不改变原有函数声明.
 using namespace System::Runtime::InteropServices;
 using namespace System;
 using namespace peconv;
+//using namespace std;
+
 
 #ifdef _WIN64
 typedef unsigned __int64 size_t;
@@ -114,9 +116,9 @@ namespace PeconvCLR {
         {
             return get_sections_count(IN (BYTE*) payload.ToPointer(), buffer_size);
         }
-        static PIMAGE_SECTION_HEADER GetSectionHdr(IN IntPtr payload, IN const size_t buffer_size, IN size_t section_num)
-        {
-            return get_section_hdr(IN (BYTE*) payload.ToPointer(), IN  buffer_size, IN  section_num);
+        static IntPtr GetSectionHdr(IN IntPtr payload, IN const size_t buffer_size, IN size_t section_num)        
+        {   
+            return (IntPtr) get_section_hdr(IN (BYTE*) payload.ToPointer(), IN  buffer_size, IN  section_num);
         }
         static ULONGLONG GetImagebase(IN IntPtr pe_buffer)
         {
@@ -185,8 +187,6 @@ namespace PeconvCLR {
         static bool is_compatibile(IntPtr implant_dll);
     };
 }
-
-
 ```
 
 [![Build status](https://ci.appveyor.com/api/projects/status/pqo6ob148pf5b352?svg=true)](https://ci.appveyor.com/project/hasherezade/libpeconv)
