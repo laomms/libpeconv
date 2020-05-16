@@ -96,6 +96,7 @@ namespace PeconvCLR {
         {       
             size_t vsize = (size_t)v_size;
             BYTE* ret = load_pe_executable((char*)(void*)Marshal::StringToHGlobalAnsi(my_path),  vsize, (t_function_resolver*)&import_resolver);
+            v_size = vsize;
             return  (IntPtr)ret;
         }
         static IntPtr LoadPeModule(String^ filename, size_t^% v_size, bool executable, bool relocate)
@@ -211,6 +212,7 @@ namespace PeconvCLR {
         static bool is_compatibile(IntPtr implant_dll);
     };
 }
+
 
 ```
 
