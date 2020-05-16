@@ -202,7 +202,7 @@ Module Module1
         Dim mapped As IntPtr = map_dll_image("C:\Windows\System32\KernelBase.dll")
         Dim v_size As UInteger = 0
         Dim implant_dll = PeconvCLR.FuncLists.LoadPeExecutable("test.dll", v_size, 0)
-        If implant_dll <> IntPtr.Zero Then
+        If implant_dll = IntPtr.Zero Then
             Console.WriteLine("Failed to load the implant!")
         End If
         If PeconvCLR.FuncLists.is_compatibile(implant_dll) Then
