@@ -189,20 +189,246 @@ namespace PeconvCLR {
 }
 ```
 
-[![Build status](https://ci.appveyor.com/api/projects/status/pqo6ob148pf5b352?svg=true)](https://ci.appveyor.com/project/hasherezade/libpeconv)
-[![Codacy Badge](https://api.codacy.com/project/badge/Grade/55911b033cf145d38d6e38a0c005b686)](https://www.codacy.com/manual/hasherezade/libpeconv?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=hasherezade/libpeconv&amp;utm_campaign=Badge_Grade)
 
-A library to load and manipulate PE files.<br/>
-<br/>
+example
 
-### Basic example
 
-*The simplest usecase*: use libPeConv to manually load and run an EXE of you choice.
+```vb.net
+Imports System.Runtime.InteropServices
 
-```C
+Module Module1
 
-### Read more
-+   [Docs](https://hasherezade.github.io/libpeconv/)
-+   [Examples](https://github.com/hasherezade/libpeconv/tree/master/tests)
-+   [Tutorials](https://hshrzd.wordpress.com/tag/libpeconv/)
-+   [Project template](https://github.com/hasherezade/libpeconv_project_template)
+    Sub Main()
+        Dim mapped As IntPtr = map_dll_image("C:\Windows\System32\KernelBase.dll")
+        Dim v_size As UInteger = 0
+        Dim implant_dll = PeconvCLR.FuncLists.LoadPeExecutable("test.dll", v_size, 0)
+        If implant_dll <> IntPtr.Zero Then
+            Console.WriteLine("Failed to load the implant!")
+        End If
+        If PeconvCLR.FuncLists.is_compatibile(implant_dll) Then
+            If PeconvCLR.FuncLists.RelocateModule(implant_dll, v_size, mapped, implant_dll) Then
+                If overwrite_mapping(mapped, implant_dll, v_size) Then
+                    Dim ep_rva As UInteger = PeconvCLR.FuncLists.GetEntrypoint_Rva(implant_dll)
+                    Dim is_dll As Boolean = PeconvCLR.FuncLists.IsDll(implant_dll)
+                    run_implant(mapped, ep_rva, is_dll)
+                    PeconvCLR.FuncLists.FreePeBuffer(implant_dll, 0)
+                    implant_dll = Nothing
+                End If
+            End If
+        End If
+    End Sub
+    Private Function map_dll_image(ByVal dll_name As String) As IntPtr
+        Dim hFile As IntPtr = CreateFileA(dll_name, GENERIC_READ, 0, Nothing, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, Nothing)
+        If hFile = IntPtr.Zero Then
+            Return Nothing
+        End If
+        Dim hSection As IntPtr = Nothing
+        Dim status = NtCreateSection(hSection, SECTION_ALL_ACCESS, Nothing, 0, PAGE_READONLY, SEC_IMAGE, hFile)
+        If status <> 0 Then
+            Return Nothing
+        End If
+        CloseHandle(hFile)
+        Dim sectionBaseAddress As IntPtr = Nothing
+        Dim viewSize As IntPtr = Nothing
+        status = NtMapViewOfSection(hSection, GetCurrentProcess(), sectionBaseAddress, Nothing, Nothing, Nothing, viewSize, SECTION_INHERIT.ViewShare, Nothing, PAGE_EXECUTE_READWRITE)
+        If status = 0 Then
+            Return Nothing
+        End If
+        Return sectionBaseAddress
+    End Function
+
+    Private Function overwrite_mapping(ByVal mapped As IntPtr, ByRef implant_dll As Byte, ByVal implant_size As UInteger) As Boolean
+        Dim hProcess As IntPtr = GetCurrentProcess()
+        Dim oldProtect As UInteger = 0
+
+        Dim prev_size As UInteger = PeconvCLR.FuncLists.GetImagesize(mapped)
+        If prev_size <> 0 Then
+            If Not VirtualProtect(DirectCast(mapped, Object), prev_size, PAGE_READWRITE, oldProtect) Then
+                Return False
+            End If
+            MemSet(mapped, 0, prev_size)
+            If Not VirtualProtect(DirectCast(mapped, Object), prev_size, PAGE_READONLY, oldProtect) Then
+                Return False
+            End If
+        End If
+        If Not VirtualProtect(DirectCast(mapped, Object), implant_size, PAGE_READWRITE, oldProtect) Then
+            If implant_size > prev_size Then
+                Console.Write("[-] The implant is too big for the target!" & vbLf)
+            End If
+            Return False
+        End If
+        CopyMemory(mapped, implant_dll, implant_size)
+        Return True
+
+        ' set access:
+        If Not set_sections_access(mapped, implant_dll, implant_size) Then
+            Return False
+        End If
+
+    End Function
+    Private Function set_sections_access(ByVal mapped As IntPtr, ByRef implant_dll As IntPtr, ByVal implant_size As UInteger) As Boolean
+        Dim oldProtect As UInteger = 0
+        ' protect PE header
+        If Not VirtualProtect(DirectCast(mapped, Object), &H1000, PAGE_READONLY, oldProtect) Then
+            Return False
+        End If
+        'protect sections:
+        Dim count = PeconvCLR.FuncLists.GetSectionsCount(implant_dll, implant_size)
+        For i As UInteger = 0 To count - 1
+            Dim next_sec As IMAGE_SECTION_HEADER = Marshal.PtrToStructure(PeconvCLR.FuncLists.GetSectionHdr(implant_dll, implant_size, i), GetType(IMAGE_SECTION_HEADER))
+            Dim sec_protect As UInteger = translate_protect(next_sec.Characteristics)
+            Dim sec_offset As UInteger = next_sec.VirtualAddress
+            Dim sec_size As UInteger = next_sec.Misc.VirtualSize
+            If Not VirtualProtect(IntPtr.Add(mapped, sec_offset), sec_size, sec_protect, oldProtect) Then
+                Return False
+            End If
+        Next i
+        Return True
+    End Function
+    Private Function translate_protect(ByVal sec_charact As UInteger) As UInteger
+        If (sec_charact And IMAGE_SCN_MEM_EXECUTE) <> 0 AndAlso (sec_charact And IMAGE_SCN_MEM_READ) <> 0 AndAlso (sec_charact And IMAGE_SCN_MEM_WRITE) <> 0 Then
+            Return PAGE_EXECUTE_READWRITE
+        End If
+        If (sec_charact And IMAGE_SCN_MEM_EXECUTE) <> 0 AndAlso (sec_charact And IMAGE_SCN_MEM_READ) <> 0 Then
+            Return PAGE_EXECUTE_READ
+        End If
+        If (sec_charact And IMAGE_SCN_MEM_EXECUTE) <> 0 Then
+            Return PAGE_EXECUTE_READ
+        End If
+
+        If (sec_charact And IMAGE_SCN_MEM_READ) <> 0 AndAlso (sec_charact And IMAGE_SCN_MEM_WRITE) <> 0 Then
+            Return PAGE_READWRITE
+        End If
+        If (sec_charact And IMAGE_SCN_MEM_READ) <> 0 Then
+            Return PAGE_READONLY
+        End If
+        Return PAGE_READWRITE
+    End Function
+    Private Sub run_implant(ByVal mapped As Object, ByVal ep_rva As UInteger, ByVal is_dll As Boolean)
+        Dim implant_ep As IntPtr = DirectCast(mapped, IntPtr) + ep_rva
+        Console.Write("[*] Executing Implant's Entry Point: ")
+        Console.Write("{0:x}", implant_ep)
+        Console.Write("{0:x}", vbLf)
+        If is_dll Then
+            'run the implant as a DLL:
+            Dim dll_main As dll_mainDelegate = Marshal.GetDelegateForFunctionPointer(implant_ep, GetType(dll_mainDelegate))
+            dll_main(mapped, 1, 0)
+        Else
+            'run the implant as EXE:
+            Dim exe_main As exe_mainDelegate = Marshal.GetDelegateForFunctionPointer(implant_ep, GetType(exe_mainDelegate))
+            exe_main()
+        End If
+    End Sub
+    <UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet:=CharSet.Unicode)>
+    Public Delegate Function dll_mainDelegate(ByVal HINSTANCE As IntPtr, ByVal DWORD As UInteger, ByVal LPVOID As IntPtr) As Boolean
+    <UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet:=CharSet.Unicode)>
+    Public Delegate Function exe_mainDelegate() As Boolean
+    Public Const STANDARD_RIGHTS_REQUIRED As UInteger = &HF0000
+    Public Const SECTION_QUERY As UInteger = &H1
+    Public Const SECTION_MAP_WRITE As UInteger = &H2
+    Public Const SECTION_MAP_READ As UInteger = &H4
+    Public Const SECTION_MAP_EXECUTE As UInteger = &H8
+    Public Const SECTION_EXTEND_SIZE As UInteger = &H10
+    Public Const SECTION_ALL_ACCESS As UInteger = STANDARD_RIGHTS_REQUIRED Or SECTION_QUERY Or SECTION_MAP_WRITE Or SECTION_MAP_READ Or SECTION_MAP_EXECUTE Or SECTION_EXTEND_SIZE
+    Public Const pageSize As ULong = 81920
+    Public Const OPEN_EXISTING As Integer = 3
+    Public GENERIC_READ As UInteger = &H80000000UI
+    Public FILE_ATTRIBUTE_NORMAL As UInteger = &H80
+    Public Const PAGE_READONLY As Integer = &H2
+    Public Const SEC_IMAGE As UInteger = &H1000000
+    Public Const PAGE_EXECUTE_READWRITE As Long = &H40
+    Public Const PAGE_READWRITE As Integer = 4
+    Public IMAGE_SCN_MEM_EXECUTE As UInteger = &H20000000
+    Public IMAGE_SCN_MEM_READ As UInteger = &H40000000
+    Public IMAGE_SCN_MEM_WRITE As Long = &H80000000
+    Public PAGE_EXECUTE_READ As UInteger = &H20
+    Public Enum SECTION_INHERIT
+        ViewShare = 1
+        ViewUnmap = 2
+    End Enum
+    Public Enum ACCESS_MASK : Uint32
+        DELETE = &H10000
+        READ_CONTROL = &H20000
+        WRITE_DAC = &H40000
+        WRITE_OWNER = &H80000
+        SYNCHRONIZE = &H100000
+        STANDARD_RIGHTS_REQUIRED = &HF0000
+        STANDARD_RIGHTS_READ = &H20000
+        STANDARD_RIGHTS_WRITE = &H20000
+        STANDARD_RIGHTS_EXECUTE = &H20000
+        STANDARD_RIGHTS_ALL = &H1F0000
+        SPECIFIC_RIGHTS_ALL = &HFFFF
+        ACCESS_SYSTEM_SECURITY = &H1000000
+        MAXIMUM_ALLOWED = &H2000000
+        GENERIC_READ = &H80000000
+        GENERIC_WRITE = &H40000000
+        GENERIC_EXECUTE = &H20000000
+        GENERIC_ALL = &H10000000
+        DESKTOP_READOBJECTS = &H1
+        DESKTOP_CREATEWINDOW = &H2
+        DESKTOP_CREATEMENU = &H4
+        DESKTOP_HOOKCONTROL = &H8
+        DESKTOP_JOURNALRECORD = &H10
+        DESKTOP_JOURNALPLAYBACK = &H20
+        DESKTOP_ENUMERATE = &H40
+        DESKTOP_WRITEOBJECTS = &H80
+        DESKTOP_SWITCHDESKTOP = &H100
+        WINSTA_ENUMDESKTOPS = &H1
+        WINSTA_READATTRIBUTES = &H2
+        WINSTA_ACCESSCLIPBOARD = &H4
+        WINSTA_CREATEDESKTOP = &H8
+        WINSTA_WRITEATTRIBUTES = &H10
+        WINSTA_ACCESSGLOBALATOMS = &H20
+        WINSTA_EXITWINDOWS = &H40
+        WINSTA_ENUMERATE = &H100
+        WINSTA_READSCREEN = &H200
+        WINSTA_ALL_ACCESS = &H37F
+    End Enum
+    Public Structure Misc
+        Public PhysicalAddress As System.UInt32
+        Public VirtualSize As System.UInt32
+    End Structure
+    Public Structure IMAGE_SECTION_HEADER
+        Public Name As System.Byte
+        Public Misc As Misc
+        Public VirtualAddress As System.UInt32
+        Public SizeOfRawData As System.UInt32
+        Public PointerToRawData As System.UInt32
+        Public PointerToRelocations As System.UInt32
+        Public PointerToLinenumbers As System.UInt32
+        Public NumberOfRelocations As System.UInt16
+        Public NumberOfLinenumbers As System.UInt16
+        Public Characteristics As System.UInt32
+    End Structure
+    <DllImport("kernel32.dll", SetLastError:=True)>
+    Public Function CreateFileA(lpFileName As String, dwDesiredAccess As UInteger, dwShareMode As UInteger, lpSecurityAttributes As IntPtr, dwCreationDisposition As UInteger, dwFlagsAndAttributes As UInteger, hTemplateFile As IntPtr) As IntPtr
+    End Function
+    <DllImport("ntdll.dll", SetLastError:=True)>
+    Public Function NtCreateSection(ByRef SectionHandle As IntPtr, ByVal DesiredAccess As UInteger, ByVal ObjectAttributes As IntPtr, ByRef MaximumSize As ULong, ByVal SectionPageProtection As UInteger, ByVal AllocationAttributes As UInteger, ByVal FileHandle As IntPtr) As UInteger
+    End Function
+    <DllImport("ntdll.dll", SetLastError:=True)>
+    Public Function NtMapViewOfSection(ByVal SectionHandle As IntPtr, ByVal ProcessHandle As IntPtr, ByRef BaseAddress As IntPtr, ByVal ZeroBits As UIntPtr, ByVal CommitSize As UIntPtr, ByRef SectionOffset As ULong, ByRef ViewSize As UInteger, ByVal InheritDisposition As UInteger, ByVal AllocationType As UInteger, ByVal Win32Protect As UInteger) As UInteger
+    End Function
+    <DllImport("kernel32.dll", SetLastError:=True)>
+    Public Function CloseHandle(ByVal hObject As IntPtr) As Boolean
+    End Function
+    <DllImport("kernel32.dll")>
+    Public Function GetCurrentProcess() As IntPtr
+    End Function
+    <DllImport("msvcrt.dll", EntryPoint:="memset", CallingConvention:=CallingConvention.Cdecl, SetLastError:=False)>
+    Public Function MemSet(dest As IntPtr, c As Integer, byteCount As Integer) As IntPtr
+    End Function
+    <DllImport("msvcrt.dll", EntryPoint:="memcpy", CallingConvention:=CallingConvention.Cdecl)>
+    Public Sub CopyMemory(ByVal dest As IntPtr, ByVal src As IntPtr, ByVal count As Integer)
+    End Sub
+
+    <DllImport("kernel32", CharSet:=CharSet.Auto, SetLastError:=True)>
+    Public Function VirtualProtectEx(ByVal hProcess As IntPtr, ByVal lpAddress As IntPtr, ByVal dwSize As IntPtr, ByVal flNewProtect As UInteger, ByRef lpflOldProtect As UInteger) As Boolean
+    End Function
+    <DllImport("kernel32", CharSet:=CharSet.Auto, SetLastError:=True)>
+    Public Function VirtualProtect(ByVal lpAddress As IntPtr, ByVal dwSize As Integer, ByVal flNewProtect As Integer, ByRef lpflOldProtect As UInteger) As Boolean
+    End Function
+
+End Module
+
+```
