@@ -335,8 +335,8 @@ Module Module1
         End If
         Return PAGE_READWRITE
     End Function
-    Private Sub run_implant(ByVal mapped As Object, ByVal ep_rva As UInteger, ByVal is_dll As Boolean)
-        Dim implant_ep As IntPtr = IntPtr.Add(mapped, +ep_rva)
+    Private Sub run_implant(ByVal mapped As IntPtr, ByVal ep_rva As UInteger, ByVal is_dll As Boolean)
+        Dim implant_ep As IntPtr = IntPtr.Add(mapped, ep_rva)
         Console.Write("[*] Executing Implant's Entry Point: ")
         Console.Write("{0:x}", implant_ep)
         Console.Write("{0:x}", vbLf)
@@ -462,6 +462,5 @@ Module Module1
     End Function
 
 End Module
-
 
 ```
