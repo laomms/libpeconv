@@ -68,8 +68,7 @@ namespace PeconvCLR {
     public:
         static IntPtr LoadFile(IN String^ filename, OUT size_t read_size)  
         {
-            char* filename_ = (char*)(void*)Marshal::StringToHGlobalAnsi(filename);
-            return (IntPtr)load_file(IN filename_,  read_size);
+            return (IntPtr)load_file(IN(char*)(void*)Marshal::StringToHGlobalAnsi(filename),  read_size);
         }
         static  void FreeFile(IN Byte buffer)
         {
@@ -83,11 +82,9 @@ namespace PeconvCLR {
         {
             return free_aligned((PBYTE)buffer, buffer_size);
         }
-        static IntPtr LoadPeExecutable_Dll(array<Byte>^ dllRawData, size_t r_size, size_t v_size, IntPtr import_resolver)
+        static IntPtr LoadPeExecutable_Dll(IntPtr dllRawData, size_t r_size, size_t v_size, IntPtr import_resolver)
         {
-            cli::pin_ptr<Byte> p = &dllRawData[0];
-            BYTE* dll_RawData = p;
-            return (IntPtr)load_pe_executable_dll(dll_RawData, r_size, v_size, (t_function_resolver*)&import_resolver);
+            return (IntPtr)load_pe_executable_dll((BYTE*)dllRawData.ToPointer(), r_size, v_size, (t_function_resolver*)&import_resolver);
         }
         static IntPtr LoadPeExecutable(String^ my_path, OUT size_t v_size, IntPtr import_resolver)
         {
@@ -99,11 +96,9 @@ namespace PeconvCLR {
             char* filename_ = (char*)(void*)Marshal::StringToHGlobalAnsi(filename);
             return (IntPtr)load_pe_module(filename_, OUT  v_size, executable, relocate);
         }
-        static IntPtr LoadPeModule_Dll(BYTE* dllRawData, size_t r_size, OUT size_t v_size, bool executable, bool relocate)
+        static IntPtr LoadPeModule_Dll(IntPtr dllRawData, size_t r_size, OUT size_t v_size, bool executable, bool relocate)
         {
-            cli::pin_ptr<Byte> p = &dllRawData[0];
-            BYTE* dll_RawData = p;
-            return (IntPtr)load_pe_module_dll(dll_RawData, r_size, OUT  v_size, executable, relocate);
+            return (IntPtr)load_pe_module_dll((BYTE*)dllRawData.ToPointer(), r_size, OUT  v_size, executable, relocate);
         }
         static IntPtr LoadreSourceData(OUT size_t out_size, int res_id, String^ res_type, IntPtr hInstance)
         {
@@ -118,111 +113,83 @@ namespace PeconvCLR {
         {
             return free_pe_buffer((PBYTE)buffer, buffer_size);
         }
-        static DWORD GetEntrypoint_Rva(IN const array<Byte>^ pe_buffer)
+        static DWORD GetEntrypoint_Rva(IN IntPtr pe_buffer)
         {
-            cli::pin_ptr<Byte> p = &pe_buffer[0];
-            BYTE* pebuffer = p;
-            return get_entry_point_rva(pebuffer);
+            return get_entry_point_rva((BYTE *) pe_buffer.ToPointer());
         }
-        static size_t GetSectionsCount(IN const array<Byte>^ payload, IN const size_t buffer_size)
+        static size_t GetSectionsCount(IN IntPtr payload, IN const size_t buffer_size)
         {
-            cli::pin_ptr<Byte> p = &payload[0];
-            BYTE* payload_ = p;
-            return get_sections_count(IN payload_, buffer_size);
+            return get_sections_count(IN (BYTE*) payload.ToPointer(), buffer_size);
         }
-        static PIMAGE_SECTION_HEADER GetSectionHdr(IN const array<Byte>^ payload, IN const size_t buffer_size, IN size_t section_num)
+        static PIMAGE_SECTION_HEADER GetSectionHdr(IN IntPtr payload, IN const size_t buffer_size, IN size_t section_num)
         {
-            cli::pin_ptr<Byte> p = &payload[0];
-            BYTE* payload_ = p;
-            return get_section_hdr(IN payload_, IN  buffer_size, IN  section_num);
+            return get_section_hdr(IN (BYTE*) payload.ToPointer(), IN  buffer_size, IN  section_num);
         }
-        static ULONGLONG GetImagebase(IN const array<Byte>^ pe_buffer)
+        static ULONGLONG GetImagebase(IN IntPtr pe_buffer)
         {
-            cli::pin_ptr<Byte> p = &pe_buffer[0];
-            BYTE* pebuffer = p;
-            return get_image_base(pebuffer);
+            return get_image_base((BYTE*)pe_buffer.ToPointer());
         }
-        static DWORD GetImagesize(IN const array<Byte>^ payload)
+        static DWORD GetImagesize(IN IntPtr payload)
         {
-            cli::pin_ptr<Byte> p = &payload[0];
-            BYTE* payload_ = p;
-            return get_image_size(IN  payload_);
+            return get_image_size(IN (BYTE*) payload.ToPointer());
         }
-        static WORD GetSubsystem(IN const array<Byte>^ payload)
+        static WORD GetSubsystem(IN IntPtr payload)
         {
-            cli::pin_ptr<Byte> p = &payload[0];
-            BYTE* payload_ = p;
-            return get_subsystem(payload_);
+            return get_subsystem((BYTE*)payload.ToPointer());
         }
         static IMAGE_EXPORT_DIRECTORY* GetExportDirectory(IN IntPtr modulePtr)
         {
             return get_export_directory((HMODULE)modulePtr.ToPointer());
         }
-        static IntPtr PeRealignRawToVirtual(IN const array<Byte>^ payload, IN size_t in_size, IN ULONGLONG loadBase, OUT size_t& out_size)
+        static IntPtr PeRealignRawToVirtual(IN IntPtr payload, IN size_t in_size, IN ULONGLONG loadBase, OUT size_t& out_size)
         {
-            cli::pin_ptr<Byte> p = &payload[0];
-            BYTE* payload_ = p;
-            return (IntPtr)pe_realign_raw_to_virtual(IN payload_, IN in_size, IN loadBase, OUT  out_size);
+            return (IntPtr)pe_realign_raw_to_virtual(IN(BYTE*)payload.ToPointer(), IN in_size, IN loadBase, OUT  out_size);
         }
-        static IntPtr PeVirtualToRaw(IN array<Byte>^ payload, IN size_t in_size, IN ULONGLONG loadBase, OUT size_t& out_size, IN OPTIONAL bool rebuffer)
+        static IntPtr PeVirtualToRaw(IN IntPtr payload, IN size_t in_size, IN ULONGLONG loadBase, OUT size_t& out_size, IN OPTIONAL bool rebuffer)
         {
-            cli::pin_ptr<Byte> p = &payload[0];
-            BYTE* payload_ = p;
-            return (IntPtr)pe_virtual_to_raw(IN  payload_, IN  in_size, IN  loadBase, OUT  out_size, IN OPTIONAL  rebuffer);
+            return (IntPtr)pe_virtual_to_raw(IN (BYTE*)payload.ToPointer(), IN  in_size, IN  loadBase, OUT  out_size, IN OPTIONAL  rebuffer);
         }
         static bool DumpFile(IN const char* out_path, IN PBYTE dump_data, IN size_t dump_size)
         {
             return dump_to_file(IN  out_path, IN  dump_data, IN  dump_size);
         }
-        static PBYTE FindPaddingCave(array<Byte>^ modulePtr, size_t moduleSize, const size_t minimal_size, const DWORD req_charact)
+        static PBYTE FindPaddingCave(IntPtr modulePtr, size_t moduleSize, const size_t minimal_size, const DWORD req_charact)
         {
-            cli::pin_ptr<Byte> p = &modulePtr[0];
-            BYTE* modulePtr_ = p;
-            return find_padding_cave(modulePtr_, moduleSize, minimal_size, req_charact);
+            return find_padding_cave((BYTE*)modulePtr.ToPointer(), moduleSize, minimal_size, req_charact);
         }
-        static bool IsDll(IN const array<Byte>^ payload)
+        static bool IsDll(IN IntPtr payload)
         {
-            cli::pin_ptr<Byte> p = &payload[0];
-            BYTE* payload_ = p;
-            return is_module_dll(IN  payload_);
+            return is_module_dll(IN (BYTE*)payload.ToPointer());
         }
-        static bool Is64(IN const array<Byte>^ pe_buffer)
+        static bool Is64(IN IntPtr pe_buffer)
         {
-            cli::pin_ptr<Byte> p = &pe_buffer[0];
-            BYTE* pebuffer = p;
-            return is64bit(IN  pebuffer);
+            return is64bit(IN(BYTE*)pe_buffer.ToPointer());
         }
-        static bool HasRelocations(IN const array<Byte>^ pe_buffer)
+        static bool HasRelocations(IN IntPtr pe_buffer)
         {
-            cli::pin_ptr<Byte> p = &pe_buffer[0];
-            BYTE* pebuffer = p;
-            return has_relocations(IN  pebuffer);
+            return has_relocations(IN(BYTE*)pe_buffer.ToPointer());
         }
         static bool HasValidRelocationTable(IN const PBYTE modulePtr, IN const size_t moduleSize)
         {
             return has_valid_relocation_table(IN  modulePtr, IN  moduleSize);
         }
-        static Byte ReadFromFile(IN const char* in_path, IN OUT size_t& read_size)
+        static Byte ReadFromFile(IN String^ in_path, IN OUT size_t read_size)
         {
-            return (Byte)read_from_file(IN  in_path, IN OUT  read_size);
+            return (Byte)read_from_file(IN(char*)(void*)Marshal::StringToHGlobalAnsi(in_path), IN OUT  read_size);
         }
-        static bool RelocateModule(IN array<Byte>^ modulePtr, IN size_t moduleSize, IN ULONGLONG newBase, IN ULONGLONG oldBase)
+        static bool RelocateModule(IN IntPtr modulePtr, IN size_t moduleSize, IN ULONGLONG newBase, IN ULONGLONG oldBase)
         {
-            cli::pin_ptr<Byte> p = &modulePtr[0];
-            BYTE* modulePtr_ = p;
-            return relocate_module(IN modulePtr_, IN  moduleSize, IN newBase, IN oldBase);
+            return relocate_module(IN (BYTE*)modulePtr.ToPointer(), IN  moduleSize, IN newBase, IN oldBase);
         }
-        static bool UpdateEntrypointRva(IN OUT array<Byte>^ pe_buffer, IN DWORD value)
+        static bool UpdateEntrypointRva(IN OUT IntPtr pe_buffer, IN DWORD value)
         {
-            cli::pin_ptr<Byte> p = &pe_buffer[0];
-            BYTE* pebuffer = p;
-            return update_entry_point_rva(IN OUT  pebuffer, IN  value);
+            return update_entry_point_rva(IN OUT(BYTE*)pe_buffer.ToPointer(), IN  value);
         }
         static bool ValidatePtr(IN const IntPtr buffer_bgn, IN size_t buffer_size, IN const void* field_bgn, IN size_t field_size)
         {
-
             return validate_ptr(IN (void*) buffer_bgn, IN  buffer_size, IN  field_bgn, IN  field_size);
         }
+        static bool is_compatibile(IntPtr implant_dll);
     };
 }
 
