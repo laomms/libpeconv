@@ -102,12 +102,7 @@ namespace PeconvCLR {
         }
         static IntPtr LoadreSourceData(OUT size_t out_size, int res_id, String^ res_type, IntPtr hInstance)
         {
-            char buffer[1024];
-            IntPtr hglob = Marshal::StringToHGlobalAnsi(res_type);
-            char* restype = static_cast<char*>(hglob.ToPointer());
-            strcpy(buffer, restype);
-            Marshal::FreeHGlobal(hglob);
-            return (IntPtr)load_resource_data(OUT out_size, res_id, restype, (HMODULE)hInstance.ToPointer());
+            return (IntPtr)load_resource_data(OUT out_size, res_id, (char*)Marshal::StringToHGlobalAnsi(res_type).ToPointer(), (HMODULE)hInstance.ToPointer());
         }
         static bool FreePeBuffer(Byte buffer, size_t buffer_size)
         {
@@ -191,6 +186,8 @@ namespace PeconvCLR {
         }
         static bool is_compatibile(IntPtr implant_dll);
     };
+
+
 }
 
 ```
