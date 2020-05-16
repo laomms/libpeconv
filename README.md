@@ -39,7 +39,7 @@ validate_ptr;
  
 ```
 
-Managed Dll(CLR .net4.5):
+Managed Dll(CLR .net4.5),不改变原有函数声明.
  ```C
 #pragma once
 #include <windows.h>
@@ -51,8 +51,6 @@ Managed Dll(CLR .net4.5):
 using namespace System::Runtime::InteropServices;
 using namespace System;
 using namespace peconv;
-//using namespace std;
-
 
 #ifdef _WIN64
 typedef unsigned __int64 size_t;
@@ -70,17 +68,17 @@ namespace PeconvCLR {
         {
             return (IntPtr)load_file(IN(char*)(void*)Marshal::StringToHGlobalAnsi(filename),  read_size);
         }
-        static  void FreeFile(IN Byte buffer)
+        static  void FreeFile(IN IntPtr buffer)
         {
-            return free_file((PBYTE)buffer);
+            return free_file((PBYTE)buffer.ToPointer());
         }
         static IntPtr AllocAligned(size_t buffer_size, int protect, ULONGLONG desired_base)
         {
             return (IntPtr)alloc_aligned(buffer_size, protect, desired_base);
         }
-        static  bool FreeaLigned(Byte buffer, unsigned  int buffer_size)
+        static  bool FreeaLigned(IntPtr buffer, unsigned  int buffer_size)
         {
-            return free_aligned((PBYTE)buffer, buffer_size);
+            return free_aligned((PBYTE)buffer.ToPointer(), buffer_size);
         }
         static IntPtr LoadPeExecutable_Dll(IntPtr dllRawData, size_t r_size, size_t v_size, IntPtr import_resolver)
         {
@@ -104,9 +102,9 @@ namespace PeconvCLR {
         {
             return (IntPtr)load_resource_data(OUT out_size, res_id, (char*)Marshal::StringToHGlobalAnsi(res_type).ToPointer(), (HMODULE)hInstance.ToPointer());
         }
-        static bool FreePeBuffer(Byte buffer, size_t buffer_size)
+        static bool FreePeBuffer(IntPtr buffer, size_t buffer_size)
         {
-            return free_pe_buffer((PBYTE)buffer, buffer_size);
+            return free_pe_buffer((PBYTE)buffer.ToPointer(), buffer_size);
         }
         static DWORD GetEntrypoint_Rva(IN IntPtr pe_buffer)
         {
@@ -186,9 +184,8 @@ namespace PeconvCLR {
         }
         static bool is_compatibile(IntPtr implant_dll);
     };
-
-
 }
+
 
 ```
 
