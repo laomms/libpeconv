@@ -226,7 +226,7 @@ namespace PeconvCLR {
 ```
 
 
-module_overloading example:     
+# module_overloading example:     
 https://github.com/hasherezade/module_overloading/blob/master/project_template/main.cpp
 
 
@@ -475,3 +475,253 @@ End Module
 
 ```
 ![image](https://github.com/laomms/libpeconv/blob/master/test.png)   
+
+# pe_to_shellcode sample:   
+https://github.com/hasherezade/pe_to_shellcode/blob/master/pe2shc/main.cpp   
+```vb.net
+Imports System.Runtime.InteropServices
+
+#If Win64 Then
+Imports SizeT = System.UInt64
+#ElseIf Win32 Then
+Imports SizeT = System.UInt32
+#End If
+
+Module Module1
+
+    Private Function overwrite_hdr(ByRef my_exe As IntPtr, ByVal raw As SizeT) As Boolean
+        Dim redircode() As Byte = New Byte() {&H4D, &H5A, &H45, &H52, &HE8, &H0, &H0, &H0, &H0, &H5B, &H48, &H83, &HEB, &H9, &H53, &H48, &H81, &HC3, &H59, &H4, &H0, &H0, &HFF, &HD3, &HC3, &H0}
+        Buffer.BlockCopy(BitConverter.GetBytes(raw), 0, redircode, 18, 4)
+        Marshal.Copy(redircode, 0, my_exe, redircode.Length)
+        Return True
+    End Function
+
+    Private Function shellcodify(ByRef my_exe As IntPtr, ByVal exe_size As SizeT, ByRef out_size As SizeT, ByVal is64b As Boolean) As IntPtr
+        out_size = 0
+        Dim stub_size As SizeT
+        Dim stub As IntPtr
+        If is64b Then
+            stub_size = My.Resources.stub64.Length
+            stub = Marshal.AllocHGlobal(My.Resources.stub64.Length)
+            Marshal.Copy(My.Resources.stub64, 0, stub, My.Resources.stub64.Length)
+        Else
+            stub_size = My.Resources.stub32.Length
+            stub = Marshal.AllocHGlobal(My.Resources.stub32.Length)
+            Marshal.Copy(My.Resources.stub32, 0, stub, My.Resources.stub32.Length)
+        End If
+        Dim ext_size As SizeT = exe_size + stub_size
+        Dim ext_buf As IntPtr = PeconvCLR.FuncLists.AllocAligned(ext_size, &H4, 0)
+        If ext_buf = IntPtr.Zero Then
+            Return Nothing
+        End If
+        memcpy(ext_buf, my_exe, exe_size)
+        memcpy(ext_buf + exe_size, stub, stub_size)
+        Dim raw_addr As SizeT = exe_size
+        overwrite_hdr(ext_buf, raw_addr)
+        out_size = ext_size
+        Return ext_buf
+    End Function
+
+    Private Function has_tls_callbacks(ByRef my_exe As IntPtr, ByVal exe_size As SizeT) As Boolean
+        Dim Ptls_dir As IntPtr = PeconvCLR.FuncLists.GetDirectoryEntry(my_exe, IMAGE_DIRECTORY_ENTRY_TLS, False)
+        If Ptls_dir = IntPtr.Zero Then
+            Return False
+        End If
+        Dim tls_dir As IMAGE_DATA_DIRECTORY = Marshal.PtrToStructure(Ptls_dir, GetType(IMAGE_DATA_DIRECTORY))
+        Dim Ptls As IntPtr = PeconvCLR.FuncLists.GettyPeDirectory(my_exe, IMAGE_DIRECTORY_ENTRY_TLS)
+        If Ptls = IntPtr.Zero Then
+            Return False
+        End If
+        Dim tls As IMAGE_TLS_DIRECTORY = Marshal.PtrToStructure(Ptls, GetType(IMAGE_TLS_DIRECTORY))
+        Dim base As ULong = PeconvCLR.FuncLists.GetImagebase(my_exe)
+        Dim callback_rva As ULong = tls.AddressOfCallBacks
+        If callback_rva > base Then
+            callback_rva -= base
+        End If
+        If Not PeconvCLR.FuncLists.ValidatePtr(my_exe, exe_size, IntPtr.Add(my_exe, callback_rva), Len(New ULong())) Then
+            Return False
+        End If
+        Dim callback_addr As ULong = CULng(my_exe + callback_rva)
+        If callback_addr = Nothing Then
+            Return False
+        End If
+        If callback_addr = Nothing Then
+            Return False
+        End If
+        Return True
+    End Function
+
+    Private Function is_supported_pe(ByRef my_exe As IntPtr, ByVal exe_size As SizeT) As Boolean
+        If my_exe = IntPtr.Zero Then
+            Return False
+        End If
+        If Not PeconvCLR.FuncLists.HasRelocations(my_exe) Then
+            Console.WriteLine("[-] The PE must have relocations!")
+            Console.WriteLine(ControlChars.Lf)
+            Return False
+        End If
+        If PeconvCLR.FuncLists.GetSubsystem(my_exe) <> 2 Then
+            Console.WriteLine("[WARNING] This is a console application! The recommended subsystem is GUI.")
+            Console.WriteLine(ControlChars.Lf)
+        End If
+        Dim p_dotnet_dir As IntPtr = PeconvCLR.FuncLists.GetDirectoryEntry(my_exe, IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR, False)
+        If p_dotnet_dir = IntPtr.Zero Then
+            Console.WriteLine("[-] .NET applications are not supported!")
+            Console.WriteLine(ControlChars.Lf)
+            Return False
+        End If
+        Dim dotnet_dir As IMAGE_DATA_DIRECTORY = Marshal.PtrToStructure(p_dotnet_dir, GetType(IMAGE_DATA_DIRECTORY))
+        Dim p_tls_dir As IntPtr = PeconvCLR.FuncLists.GetDirectoryEntry(my_exe, IMAGE_DIRECTORY_ENTRY_TLS, False)
+        Dim tls_dir As IMAGE_DATA_DIRECTORY = Marshal.PtrToStructure(p_tls_dir, GetType(IMAGE_DATA_DIRECTORY))
+        If tls_dir.Size <> 0 Then
+            Dim has_callback As Boolean = False
+            If Not PeconvCLR.FuncLists.Is64(my_exe) Then
+                If has_tls_callbacks(my_exe, exe_size) Then
+                    has_callback = True
+                End If
+            Else
+                If has_tls_callbacks(my_exe, exe_size) Then
+                    has_callback = True
+                End If
+            End If
+            If has_callback Then
+                Console.WriteLine("[WARNING] This application has TLS callbacks, which are not supported!")
+                Console.WriteLine(ControlChars.Lf)
+            End If
+        End If
+        Return True
+    End Function
+
+    Private Function is_supported_pe(ByVal in_path As String) As Boolean
+        Console.WriteLine("Reading module from: ")
+        Console.WriteLine(in_path)
+        Console.WriteLine(ControlChars.Lf)
+        Dim exe_size As SizeT = 0
+        Dim my_exe As IntPtr = PeconvCLR.FuncLists.LoadPeModule(in_path, exe_size, False, False)
+        If my_exe = IntPtr.Zero Then
+            Console.WriteLine("[-] Could not read the input file!")
+            Console.WriteLine(ControlChars.Lf)
+            Return False
+        End If
+
+        Dim is_ok As Boolean = is_supported_pe(my_exe, exe_size)
+        PeconvCLR.FuncLists.FreePeBuffer(my_exe, 0)
+
+        If Not is_ok Then
+            Console.WriteLine("[-] Not supported input file!")
+            Console.WriteLine(ControlChars.Lf)
+            Return False
+        End If
+        Return True
+    End Function
+
+    Private Function make_out_name(ByVal input_file As String) As String
+        Dim found_indx As SizeT = input_file.LastIndexOfAny((Convert.ToString(".")).ToCharArray())
+        Dim ext As String = input_file.Substring(found_indx + 1)
+        Dim name As String = input_file.Substring(0, found_indx)
+        Return name & ".shc." & ext
+    End Function
+
+    Sub Main()
+        Dim in_path As String = "test.exe"
+        Dim out_str As String = make_out_name(in_path)
+
+        Dim exe_size As SizeT = 0
+        Dim my_exe As IntPtr = PeconvCLR.FuncLists.LoadFile(in_path, exe_size)
+        If my_exe = IntPtr.Zero Then
+            Console.WriteLine("[-] Could not read the input file!")
+            Console.WriteLine(ControlChars.Lf)
+        End If
+
+        Dim is64b As Boolean = PeconvCLR.FuncLists.Is64(my_exe)
+        Dim ext_size As SizeT = 0
+        Dim ext_buf As IntPtr = shellcodify(my_exe, exe_size, ext_size, is64b)
+        If ext_buf = IntPtr.Zero Then
+            Console.WriteLine("[-] Adding the stub failed!")
+            Console.WriteLine(ControlChars.Lf)
+            PeconvCLR.FuncLists.FreeFile(my_exe)
+        End If
+        If PeconvCLR.FuncLists.DumpFile(out_str, ext_buf, ext_size) Then
+            Console.WriteLine("[+] Saved as: ")
+            Console.WriteLine(out_str)
+            Console.WriteLine(ControlChars.Lf)
+        Else
+            Console.WriteLine("[-] Failed to save the output!")
+            Console.WriteLine(ControlChars.Lf)
+        End If
+        PeconvCLR.FuncLists.FreeFile(my_exe)
+        PeconvCLR.FuncLists.FreeaLigned(ext_buf, 0)
+        runshc(out_str)
+
+
+    End Sub
+    Private Sub runshc(in_path As String)
+        Dim exe_size As SizeT = 0
+
+        Console.WriteLine("[*] Reading module from: ")
+        Console.WriteLine(in_path)
+        Console.WriteLine(ControlChars.Lf)
+        Dim my_exe As IntPtr = PeconvCLR.FuncLists.LoadFile(in_path, exe_size)
+        If my_exe = 0 Then
+            Console.WriteLine("[-] Loading file failed")
+            Console.WriteLine(ControlChars.Lf)
+        End If
+        Dim test_buf As IntPtr = PeconvCLR.FuncLists.AllocAligned(exe_size, PAGE_EXECUTE_READWRITE, 0)
+        If test_buf = IntPtr.Zero Then
+            PeconvCLR.FuncLists.FreeFile(my_exe)
+            Console.WriteLine("[-] Allocating buffer failed")
+            Console.WriteLine(ControlChars.Lf)
+        End If
+        memcpy(test_buf, my_exe, exe_size)
+
+        'free the original buffer:
+        PeconvCLR.FuncLists.FreeFile(my_exe)
+        my_exe = Nothing
+
+        Console.WriteLine("[*] Running the shellcode:")
+        Console.WriteLine(ControlChars.Lf)
+        'run it:
+        Dim my_main As my_mainDelegate = Marshal.GetDelegateForFunctionPointer(test_buf, GetType(my_mainDelegate))
+        Dim ret_val As Integer = my_main()
+
+        PeconvCLR.FuncLists.FreeaLigned(test_buf, exe_size)
+        Console.WriteLine("[+] The shellcode finished with a return value: ")
+        Console.WriteLine("{0:x}", ret_val)
+        Console.WriteLine("{0:x}", ControlChars.Lf)
+    End Sub
+    Public Const IMAGE_DIRECTORY_ENTRY_TLS As UInteger = &H2
+    Public Const IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR As Integer = 14
+    Public Const PAGE_EXECUTE_READWRITE As UInteger = &H40UI
+    <StructLayout(LayoutKind.Sequential)>
+    Public Structure IMAGE_DATA_DIRECTORY
+        Public VirtualAddress As UInteger
+        Public Size As UInteger
+    End Structure
+    <StructLayout(LayoutKind.Sequential)>
+    Public Structure IMAGE_TLS_DIRECTORY
+        Public StartAddressOfRawData As UIntPtr
+        Public EndAddressOfRawData As UIntPtr
+        Public AddressOfIndex As UIntPtr
+        Public AddressOfCallBacks As UIntPtr
+        Public SizeOfZeroFill As UInt32
+        Public Characteristics As UInt32
+    End Structure
+
+    <UnmanagedFunctionPointer(CallingConvention.Cdecl, CharSet:=CharSet.Unicode)>
+    Public Delegate Function my_mainDelegate() As Integer
+
+    <DllImport("msvcrt.dll", EntryPoint:="memcpy", CallingConvention:=CallingConvention.Cdecl)>
+    Public Sub memcpy(ByVal dest As IntPtr, ByVal src As IntPtr, ByVal count As Integer)
+    End Sub
+    <DllImport("kernel32.dll", SetLastError:=True)>
+    Function FindResource(ByVal hModule As IntPtr, ByVal lpName As String, ByVal lpType As String) As IntPtr
+    End Function
+    <DllImport("kernel32.dll")>
+    Function FindResource(ByVal hModule As IntPtr, ByVal lpID As Integer, ByVal lpType As String) As IntPtr
+    End Function
+    <DllImport("kernel32.dll", EntryPoint:="RtlFillMemory", SetLastError:=False)>
+    Public Sub FillMemory(ByVal destination As IntPtr, ByVal length As UInteger, ByVal fill As Byte)
+    End Sub
+End Module
+
+```
