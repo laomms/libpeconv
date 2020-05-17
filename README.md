@@ -226,7 +226,8 @@ namespace PeconvCLR {
 ```
 
 
-example
+module_overloading example:     
+https://github.com/hasherezade/module_overloading/blob/master/project_template/main.cpp
 
 
 ```vb.net
