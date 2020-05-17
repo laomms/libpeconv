@@ -159,16 +159,20 @@ namespace PeconvCLR {
             out_size = outsize;
             return (IntPtr)ret;
         }
-        static IntPtr PeVirtualToRaw(IN IntPtr payload, IN size_t in_size, IN ULONGLONG loadBase, size_t^% out_size, IN OPTIONAL bool rebuffer)
+        static IntPtr PeVirtualToRaw(IN IntPtr payload, IN size_t in_size, IN ULONGLONG loadBase,OUT size_t^% out_size, IN OPTIONAL bool rebuffer)
         {
             size_t outsize = 0;
-            BYTE* ret = pe_virtual_to_raw(IN (BYTE*)payload.ToPointer(), IN  in_size, IN  loadBase, OUT  outsize, IN OPTIONAL  rebuffer);
+            BYTE* ret = pe_virtual_to_raw( (BYTE*)payload.ToPointer(),   in_size,   loadBase,  outsize,  rebuffer);
             out_size = outsize;
             return (IntPtr)ret;
         }
-        static bool DumpFile(IN String^ out_path, IN PBYTE dump_data, IN size_t dump_size)
+        static bool DumpFile(IN String^ out_path, IN IntPtr dump_data, IN size_t dump_size)
         {
-            return dump_to_file(IN(const char*)(void*)Marshal::StringToHGlobalAnsi(out_path), IN  dump_data, IN  dump_size);
+            array<Byte>^ bytedata = gcnew array<Byte>(dump_size);
+            Marshal::Copy(dump_data, bytedata, 0, dump_size);
+            pin_ptr<Byte> p = &bytedata[0];
+            Byte* dumpdata = p;
+            return dump_to_file((const char*)(void*)Marshal::StringToHGlobalAnsi(out_path), dumpdata,  dump_size);
         }
         static IntPtr FindPaddingCave(IntPtr modulePtr, size_t moduleSize, const size_t minimal_size, const DWORD req_charact)
         {
@@ -186,9 +190,9 @@ namespace PeconvCLR {
         {
             return has_relocations(IN(BYTE*)pe_buffer.ToPointer());
         }
-        static bool HasValidRelocationTable(IN const PBYTE modulePtr, IN const size_t moduleSize)
+        static bool HasValidRelocationTable(IN IntPtr module_Ptr, IN const size_t moduleSize)
         {
-            return has_valid_relocation_table(IN  modulePtr, IN  moduleSize);
+           return process_relocation_table((PVOID)module_Ptr, moduleSize, nullptr);
         }
         static IntPtr ReadFromFile(IN String^ in_path, size_t^% read_size)
         {
@@ -210,9 +214,14 @@ namespace PeconvCLR {
             return validate_ptr(IN (void*) buffer_bgn, IN  buffer_size, IN (void*) field_bgn, IN  field_size);
         }
         static bool is_compatibile(IntPtr implant_dll);
+        static IntPtr GetFileHdr(IN IntPtr payload, IN const size_t buffer_size)
+        {
+            const IMAGE_FILE_HEADER* ret = get_file_hdr((BYTE*)payload.ToPointer(), buffer_size);   
+            PIMAGE_FILE_HEADER structs =(PIMAGE_FILE_HEADER) & *ret;
+            return (IntPtr)structs;
+        }      
     };
 }
-
 
 ```
 
