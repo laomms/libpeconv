@@ -1,7 +1,7 @@
 # libpeconv from hasherezade
  (https://github.com/hasherezade/libpeconv)    
 
-重新编译版,dll和crt_dll
+重新编译版, 非托管dll和托管crt_dll
  
  UnManaged Dll:
  ```C
