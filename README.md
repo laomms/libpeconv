@@ -9,6 +9,7 @@ Managed Dll(CLR .net4.5),不改变原有函数声明.支持非托管和托管程
 #using <System.dll>
 #include <string>
 #include <iostream>
+#include "add_section.h"
 
 using namespace System::Runtime::InteropServices;
 using namespace System;
@@ -232,6 +233,10 @@ namespace PeconvCLR {
         static bool ReplaceTarget(array<System::Byte>^ patch_ptr, ULONGLONG dest_addr)
         {
             return peconv::replace_target((BYTE*)&patch_ptr, dest_addr);
+        }
+        static bool AddSection(String^ path, String^ wc_section_name, DWORD VirtualSize, String^ str_Characteristics)
+        {
+            return add_section((PWSTR)&path, (PWSTR)&wc_section_name, VirtualSize, (PWSTR)&str_Characteristics);
         }
     };
 }
