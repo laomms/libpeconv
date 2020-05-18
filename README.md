@@ -1,44 +1,6 @@
 # libpeconv from hasherezade
  (https://github.com/hasherezade/libpeconv)    
 
-重新编译版, 非托管dll和托管crt_dll
- 
- UnManaged Dll:
- ```C
-EXPORTS
-alloc_aligned;
-free_aligned;
-load_file;
-free_file;
-load_pe_executable_dll;
-load_pe_executable;
-load_pe_module;
-load_pe_module_dll;
-load_resource_data;
-free_pe_buffer;
-get_entry_point_rva;
-get_sections_count;
-get_section_hdr;
-get_image_base;
-get_image_size;
-get_subsystem;
-get_export_directory;
-get_file_hdr;
-pe_realign_raw_to_virtual;
-pe_virtual_to_raw;
-dump_to_file;
-find_padding_cave;
-is_module_dll;
-is64bit;
-has_relocations;
-has_valid_relocation_table
-read_from_file;
-relocate_module;
-update_entry_point_rva;
-validate_ptr;
- 
-```
-
 Managed Dll(CLR .net4.5),不改变原有函数声明.
  ```C
 #pragma once
@@ -51,7 +13,6 @@ Managed Dll(CLR .net4.5),不改变原有函数声明.
 using namespace System::Runtime::InteropServices;
 using namespace System;
 using namespace peconv;
-//using namespace std;
 
 
 #ifdef _WIN64
@@ -60,8 +21,6 @@ typedef unsigned __int64 size_t;
 typedef unsigned int size_t;
 #endif 
 
-
-
 namespace PeconvCLR {
     public ref class FuncLists
     {
@@ -69,7 +28,7 @@ namespace PeconvCLR {
         static IntPtr LoadFile(IN String^ filename, size_t^% read_size)
         {
             size_t readsize=0;
-            ALIGNED_BUF ret=load_file(IN(char*)(void*)Marshal::StringToHGlobalAnsi(filename), readsize);
+            ALIGNED_BUF ret=load_file((char*)(void*)Marshal::StringToHGlobalAnsi(filename), readsize);
             read_size = readsize;
             return (IntPtr)ret;
         }
@@ -109,7 +68,7 @@ namespace PeconvCLR {
         static IntPtr LoadPeModule_Dll(IntPtr dllRawData, size_t r_size, size_t^% v_size, bool executable, bool relocate)
         {
             size_t vsize = 0;
-            BYTE* ret = load_pe_module_dll((BYTE*)dllRawData.ToPointer(), r_size, OUT  vsize, executable, relocate);
+            BYTE* ret = load_pe_module_dll((BYTE*)dllRawData.ToPointer(), r_size, vsize, executable, relocate);
             v_size = vsize;
             return (IntPtr)ret;
         }
@@ -130,11 +89,11 @@ namespace PeconvCLR {
         }
         static size_t GetSectionsCount(IN IntPtr payload, IN const size_t buffer_size)
         {
-            return get_sections_count(IN (BYTE*) payload.ToPointer(), buffer_size);
+            return get_sections_count((BYTE*) payload.ToPointer(), buffer_size);
         }
         static IntPtr GetSectionHdr(IN IntPtr payload, IN const size_t buffer_size, IN size_t section_num)        
         {   
-            return (IntPtr) get_section_hdr(IN (BYTE*) payload.ToPointer(), IN  buffer_size, IN  section_num);
+            return (IntPtr) get_section_hdr((BYTE*) payload.ToPointer(), buffer_size, section_num);
         }
         static ULONGLONG GetImagebase(IN IntPtr pe_buffer)
         {
@@ -142,7 +101,7 @@ namespace PeconvCLR {
         }
         static DWORD GetImagesize(IN IntPtr payload)
         {
-            return get_image_size(IN (BYTE*) payload.ToPointer());
+            return get_image_size((BYTE*) payload.ToPointer());
         }
         static WORD GetSubsystem(IN IntPtr payload)
         {
@@ -150,19 +109,21 @@ namespace PeconvCLR {
         }
         static IMAGE_EXPORT_DIRECTORY* GetExportDirectory(IN IntPtr modulePtr)
         {
-            return get_export_directory((HMODULE)modulePtr.ToPointer());
+            IMAGE_EXPORT_DIRECTORY* ret = get_export_directory((HMODULE)modulePtr.ToPointer());
+            PIMAGE_EXPORT_DIRECTORY structs = (PIMAGE_EXPORT_DIRECTORY) & *ret;
+            return structs;
         }
         static IntPtr PeRealignRawToVirtual(IN IntPtr payload, IN size_t in_size, IN ULONGLONG loadBase, size_t^% out_size)
         {
             size_t outsize =0;
-            BYTE* ret = pe_realign_raw_to_virtual(IN(BYTE*)payload.ToPointer(), IN in_size, IN loadBase, OUT  outsize);
+            BYTE* ret = pe_realign_raw_to_virtual((BYTE*)payload.ToPointer(), in_size, loadBase, outsize);
             out_size = outsize;
             return (IntPtr)ret;
         }
         static IntPtr PeVirtualToRaw(IN IntPtr payload, IN size_t in_size, IN ULONGLONG loadBase,OUT size_t^% out_size, IN OPTIONAL bool rebuffer)
         {
             size_t outsize = 0;
-            BYTE* ret = pe_virtual_to_raw( (BYTE*)payload.ToPointer(),   in_size,   loadBase,  outsize,  rebuffer);
+            BYTE* ret = pe_virtual_to_raw( (BYTE*)payload.ToPointer(), in_size,loadBase,outsize,rebuffer);
             out_size = outsize;
             return (IntPtr)ret;
         }
@@ -180,15 +141,15 @@ namespace PeconvCLR {
         }
         static bool IsDll(IN IntPtr payload)
         {
-            return is_module_dll(IN (BYTE*)payload.ToPointer());
+            return is_module_dll((BYTE*)payload.ToPointer());
         }
         static bool Is64(IN IntPtr pe_buffer)
         {
             return is64bit(IN(BYTE*)pe_buffer.ToPointer());
         }
-        static bool HasRelocations(IN IntPtr pe_buffer)
+        static bool HasRelocations(IntPtr pe_buffer)
         {
-            return has_relocations(IN(BYTE*)pe_buffer.ToPointer());
+            return has_relocations((BYTE*)pe_buffer.ToPointer());
         }
         static bool HasValidRelocationTable(IN IntPtr module_Ptr, IN const size_t moduleSize)
         {
@@ -203,15 +164,15 @@ namespace PeconvCLR {
         }
         static bool RelocateModule(IN IntPtr modulePtr, IN size_t moduleSize, IN ULONGLONG newBase, IN ULONGLONG oldBase)
         {
-            return relocate_module(IN (BYTE*)modulePtr.ToPointer(), IN  moduleSize, IN newBase, IN oldBase);
+            return relocate_module((BYTE*)modulePtr.ToPointer(), moduleSize, newBase, oldBase);
         }
         static bool UpdateEntrypointRva(IN OUT IntPtr pe_buffer, IN DWORD value)
         {
-            return update_entry_point_rva(IN OUT(BYTE*)pe_buffer.ToPointer(), IN  value);
+            return update_entry_point_rva((BYTE*)pe_buffer.ToPointer(),value);
         }
         static bool ValidatePtr(IN const IntPtr buffer_bgn, IN size_t buffer_size, IN IntPtr field_bgn, IN size_t field_size)
         {
-            return validate_ptr(IN (void*) buffer_bgn, IN  buffer_size, IN (void*) field_bgn, IN  field_size);
+            return validate_ptr((void*) buffer_bgn, buffer_size, (void*) field_bgn, field_size);
         }
         static bool is_compatibile(IntPtr implant_dll);
         static IntPtr GetFileHdr(IN IntPtr payload, IN const size_t buffer_size)
@@ -220,8 +181,20 @@ namespace PeconvCLR {
             PIMAGE_FILE_HEADER structs =(PIMAGE_FILE_HEADER) & *ret;
             return (IntPtr)structs;
         }      
+        static IntPtr GetDirectoryEntry(IN  IntPtr pe_buffer, IN DWORD dir_id, IN bool allow_empty)
+        {
+            IMAGE_DATA_DIRECTORY* ret = get_directory_entry( (const BYTE*) pe_buffer.ToPointer(),  dir_id, allow_empty);
+            PIMAGE_FILE_HEADER structs = (PIMAGE_FILE_HEADER) & *ret;
+            return (IntPtr)structs;
+        }
+        static IntPtr GettyPeDirectory(IN IntPtr modulePtr, IN DWORD dir_id)
+        {
+            IMAGE_EXPORT_DIRECTORY *ret= get_type_directory<IMAGE_EXPORT_DIRECTORY>((HMODULE)modulePtr.ToPointer(),  dir_id);
+            return (IntPtr)ret;
+        }        
     };
 }
+
 
 ```
 
