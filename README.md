@@ -5,7 +5,7 @@ Managed Dll(CLR .net4.5),不改变原有函数声明.支持非托管和托管程
 添加两个函数:   
 添加区段：AddSection(test.exe/test.dll,.mysection,0x100,text(data/rdata),out)   
 SectionRVA= AddSection <file_name> <section_name> <VirtualSize> <Characteristics> <RvaRawData>    
-添加导出函数: AddExtFuncton(test.exe/test.dll,.mysection,myfunc,0x1102)     
+内部函数转导出函数: AddExtFuncton(test.exe/test.dll,.mysection,myfunc,0x1102)     
 AddExtFuncton <file_name> <section_name> <FuncName> <FuncRva>   
  
  
