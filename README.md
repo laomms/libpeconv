@@ -1,7 +1,7 @@
 # libpeconv from hasherezade
  (https://github.com/hasherezade/libpeconv)    
 
-Managed Dll(CLR .net4.5),不改变原有函数声明.
+Managed Dll(CLR .net4.5),不改变原有函数声明.支持非托管和托管程序直接调用.
  ```C
 #pragma once
 #include <windows.h>
