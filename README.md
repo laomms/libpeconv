@@ -191,10 +191,50 @@ namespace PeconvCLR {
         {
             IMAGE_EXPORT_DIRECTORY *ret= get_type_directory<IMAGE_EXPORT_DIRECTORY>((HMODULE)modulePtr.ToPointer(),  dir_id);
             return (IntPtr)ret;
-        }        
+        }  
+        static size_t RedirectToLocal64(IntPtr ptr, DWORD new_offset, IntPtr backup)
+        {
+            return peconv::redirect_to_local64((void*)ptr, new_offset, (PatchBackup*)backup.ToPointer());
+        }
+        static size_t RedirectToLocal32(IntPtr ptr, DWORD new_offset, IntPtr backup)
+        {
+            return peconv::redirect_to_local32((void*)ptr, new_offset, (PatchBackup*)backup.ToPointer());
+        }
+        static size_t RedirectToLocal(IntPtr ptr, IntPtr new_function_ptr, IntPtr backup)
+        {
+            return peconv::redirect_to_local((void*)ptr, (void*)new_function_ptr, (PatchBackup*)backup.ToPointer());
+        }
+        static FARPROC GetExportedFunc(IntPtr modulePtr, String^ wanted_name)
+        {
+            return peconv::get_exported_func((PVOID)modulePtr, (LPSTR) &wanted_name);
+        }
+        static FARPROC ResolveFunc(String^ lib_name, String^ func_name)
+        {
+            t_function_resolver* func_resolver;
+            return func_resolver->resolve_func((LPSTR)&lib_name, (LPSTR)&func_name);
+        }
+        static size_t GetExportedNames(IntPtr modulePtr, array<String^>^ names_list)
+        {
+            return peconv::get_exported_names((PVOID)modulePtr,(std::vector<std::string>&) names_list);
+        }
+        static bool ProcessImportTable(IN IntPtr modulePtr, IN SIZE_T moduleSize, IN IntPtr callback)
+        {
+            return peconv::process_import_table((BYTE*)modulePtr.ToPointer(), moduleSize, (ImportThunksCallback*) callback.ToPointer());
+        }
+        static HMODULE GetModuleViaPeb(IN OPTIONAL String^ module_name)
+        {
+            return peconv::get_module_via_peb((LPWSTR)&module_name);
+        }
+        static size_t GetModuleSizeViaPeb(IN OPTIONAL IntPtr hModule)
+        {
+            return peconv::get_module_size_via_peb((HMODULE)hModule.ToPointer());
+        }
+        static bool ReplaceTarget(array<System::Byte>^ patch_ptr, ULONGLONG dest_addr)
+        {
+            return peconv::replace_target((BYTE*)&patch_ptr, dest_addr);
+        }
     };
 }
-
 
 ```
 
