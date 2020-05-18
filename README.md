@@ -248,12 +248,13 @@ namespace PeconvCLR {
         {
             return peconv::replace_target((BYTE*)&patch_ptr, dest_addr);
         }
-        static bool AddSection(String^ path, String^ wc_section_name, DWORD VirtualSize, String^ str_Characteristics)
+        static DWORD AddSection(String^ path, String^ wc_section_name, DWORD VirtualSize, String^ str_Characteristics, DWORD^% RvaRawData)
         {
-            return add_section((PWSTR)&path, (PWSTR)&wc_section_name, VirtualSize, (PWSTR)&str_Characteristics);
+            return add_section((PWSTR)&path, (PWSTR)&wc_section_name, VirtualSize, (PWSTR)&str_Characteristics,(DWORD) RvaRawData);
         }
     };
 }
+
 
 ```
 
