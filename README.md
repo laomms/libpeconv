@@ -24,6 +24,7 @@ ModifyExsitFuncton <file_name> <Old_Func_name> <New_FuncName> <FuncRva>
 #include <string>
 #include <iostream>
 #include "add_section.h"
+#include "add_export_function.h"
 
 using namespace System::Runtime::InteropServices;
 using namespace System;
@@ -248,13 +249,20 @@ namespace PeconvCLR {
         {
             return peconv::replace_target((BYTE*)&patch_ptr, dest_addr);
         }
-        static DWORD AddSection(String^ path, String^ wc_section_name, DWORD VirtualSize, String^ str_Characteristics, DWORD^% RvaRawData)
+        static size_t AddSection(String^ path, String^ wc_section_name, DWORD VirtualSize, String^ str_Characteristics, size_t^% RvaRawData)
         {
-            return add_section((PWSTR)&path, (PWSTR)&wc_section_name, VirtualSize, (PWSTR)&str_Characteristics,(DWORD) RvaRawData);
+            return add_section((const char*)(void*)Marshal::StringToHGlobalAnsi(path), (const char*)(void*)Marshal::StringToHGlobalAnsi(wc_section_name), VirtualSize, (const char*)(void*)Marshal::StringToHGlobalAnsi(str_Characteristics),(size_t) RvaRawData);
+        }
+        static  BOOL AddExtportFuncton(String^ file_name, String^ section_name, String^ FuncName, size_t FuncRva)
+        {
+            return add_export_table((const char*)(void*)Marshal::StringToHGlobalAnsi(file_name), (const char*)(void*)Marshal::StringToHGlobalAnsi(section_name), (const char*)(void*)Marshal::StringToHGlobalAnsi(FuncName), FuncRva);
+        }
+        static  BOOL ModifyExtportFuncton(String^ file_name, String^ old_func_name, String^ FuncName, size_t FuncRva)
+        {
+            return modify_export_table((const char*)(void*)Marshal::StringToHGlobalAnsi(file_name), (const char*)(void*)Marshal::StringToHGlobalAnsi(old_func_name), (const char*)(void*)Marshal::StringToHGlobalAnsi(FuncName), FuncRva);
         }
     };
 }
-
 
 ```
 
