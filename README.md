@@ -766,3 +766,146 @@ Module Module1
 End Module
 
 ```
+
+# ExeToDll:     
+
+```vb.net
+Imports System.Runtime.InteropServices
+#If WIN64 Then
+Imports SizeT = System.UInt64
+#ElseIf Win32 Then
+Imports SizeT = System.UInt32
+#End If
+
+Module Module1
+
+    Sub Main()
+        Dim filename As String = "test.exe"
+        Dim outfile As String = "test.dll"
+        Dim v_size As SizeT
+        Dim pe_ptr As IntPtr = PeconvCLR.FuncLists.LoadPeModule(filename, v_size, False, False)
+        If pe_ptr = IntPtr.Zero Then Return
+
+        Dim ep = PeconvCLR.FuncLists.GetEntrypoint_Rva(pe_ptr)
+
+        If isDll(pe_ptr, v_size) Then
+            Console.WriteLine("It is already a DLL!")
+            Return
+        End If
+        If Not isConvertable(pe_ptr, v_size) Then
+            Console.WriteLine("[!] Converting not possible: relocation table missing or invalid!")
+            Return
+        End If
+        setExe(pe_ptr, v_size)
+        If exeToDllPatch(pe_ptr, v_size) Then
+            Console.WriteLine("[OK] Converted successfuly.")
+            Console.WriteLine(ControlChars.Lf)
+        Else
+            Console.WriteLine("Could not convert!")
+            Console.WriteLine(ControlChars.Lf)
+            Return
+        End If
+        If savePe(pe_ptr, v_size, outfile) Then
+            Console.WriteLine("[OK] Module dumped to: ")
+            Console.WriteLine(outfile)
+            Console.WriteLine(ControlChars.Lf)
+        End If
+
+
+    End Sub
+
+    Public Function isDll(pe_ptr As IntPtr, v_size As SizeT) As Boolean
+        Dim hdr As IntPtr = PeconvCLR.FuncLists.GetFileHdr(pe_ptr, v_size)
+        If hdr = IntPtr.Zero Then
+            Return False
+        End If
+        Dim ifh As IMAGE_FILE_HEADER = Marshal.PtrToStructure(hdr, GetType(IMAGE_FILE_HEADER))
+        If ifh.Characteristics And &H2000 = 0 Then
+            Return True
+        End If
+        Return False
+    End Function
+    Public Function isConvertable(pe_ptr As IntPtr, v_size As SizeT) As Boolean
+        If PeconvCLR.FuncLists.HasValidRelocationTable(pe_ptr, v_size) Then
+            Return True
+        End If
+        Return False
+    End Function
+    Public Function setExe(pe_ptr As IntPtr, v_size As SizeT) As Boolean
+        Dim hdr As IMAGE_FILE_HEADER = Marshal.PtrToStructure(PeconvCLR.FuncLists.GetFileHdr(pe_ptr, v_size), GetType(IMAGE_FILE_HEADER))
+        If hdr.NumberOfSections = 0 Then
+            Return False
+        End If
+        hdr.Characteristics = hdr.Characteristics Xor &H2000
+        Return True
+    End Function
+    Public Function getCavePtr(pe_ptr As IntPtr, v_size As SizeT, ByVal neededSize As UInteger) As IntPtr
+        Dim cave As IntPtr = PeconvCLR.FuncLists.FindPaddingCave(pe_ptr, v_size, neededSize, &H20000000I)
+        If cave = 0 Then
+            Console.WriteLine("Cave Not found!")
+        End If
+        Return cave
+    End Function
+    Public Function exeToDllPatch(pe_ptr As IntPtr, v_size As SizeT) As Boolean
+        Dim back_stub32() As Byte = {&HB8, &H1, &H0, &H0, &H0, &HC2, &HC, &H0}
+
+        Dim back_stub64() As Byte = {&HB8, &H1, &H0, &H0, &H0, &HC3}
+
+        Dim back_stub() As Byte = back_stub32
+        Dim stub_size As SizeT = back_stub32.Length
+        Dim is64bit = PeconvCLR.FuncLists.Is64(pe_ptr)
+        If is64bit Then
+            back_stub = back_stub64
+            stub_size = back_stub64.Length
+        End If
+        Dim call_offset As UInteger = stub_size - 6
+
+        Dim ptr As IntPtr = getCavePtr(pe_ptr, v_size, stub_size)
+        If ptr = IntPtr.Zero Then
+            Return False
+        End If
+        Dim backstub As IntPtr = Marshal.AllocHGlobal(back_stub.Length)
+        Marshal.Copy(back_stub, 0, backstub, back_stub.Length)
+        memmove(ptr, backstub, stub_size)
+        Marshal.FreeHGlobal(backstub)
+        Dim new_ep As UInteger = ptr - pe_ptr
+        Return PeconvCLR.FuncLists.UpdateEntrypointRva(pe_ptr, new_ep)
+
+    End Function
+    Public Function savePe(pe_ptr As IntPtr, v_size As SizeT, ByVal out_path As String) As Boolean
+        Dim out_size As SizeT
+        Dim module_base As ULong = PeconvCLR.FuncLists.GetImagebase(pe_ptr)
+        Dim unmapped_module As IntPtr = PeconvCLR.FuncLists.PeVirtualToRaw(pe_ptr, v_size, module_base, out_size, Nothing)
+        Dim is_ok As Boolean = False
+        If unmapped_module <> 0 Then
+            If PeconvCLR.FuncLists.DumpFile(out_path, unmapped_module, out_size) Then
+                is_ok = True
+            End If
+            PeconvCLR.FuncLists.FreePeBuffer(unmapped_module, v_size)
+        End If
+        Return is_ok
+    End Function
+
+    Public Structure Misc
+        Public PhysicalAddress As System.UInt32
+        Public VirtualSize As System.UInt32
+    End Structure
+    <StructLayout(LayoutKind.Sequential)>
+    Public Structure IMAGE_FILE_HEADER
+        Public Machine As UShort                        '标识CPU的数字。运行平台。
+        Public NumberOfSections As UShort               '节的数目。Windows加载器限制节的最大数目为96。文件区块数目。
+        Public TimeDateStamp As UInteger                '文件创建日期和时间,UTC时间1970年1月1日00:00起的总秒数的低32位。
+        Public PointerToSymbolTable As UInteger         '指向符号表（主要用于调试）,已废除。
+        Public NumberOfSymbols As UInteger              '符号表中符号个数，已废除。
+        Public SizeOfOptionalHeader As UShort           'IMAGE_OPTIONAL_HEADER32 结构大小，可选头大小。
+        Public Characteristics As UShort                '文件属性，文件特征值。
+    End Structure
+    <DllImport("msvcrt.dll", CallingConvention:=CallingConvention.Cdecl)>
+    Function memmove(ByVal dest As IntPtr, ByVal src As IntPtr, ByVal count As UIntPtr) As IntPtr
+    End Function
+    <DllImport("msvcrt.dll", SetLastError:=True)>
+    Function scanf(ByVal search As String, ByVal ParamArray __arglist() As Object) As Integer
+    End Function
+End Module
+
+```
